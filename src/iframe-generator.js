@@ -1,11 +1,11 @@
 export function generateWidgetHTML(url) {
-  // Extract color parameters from URL
-  const primaryColor = decodeURIComponent(url.searchParams.get('primaryColor') || '#6200ee');
-  const primaryDarkColor = decodeURIComponent(url.searchParams.get('primaryDarkColor') || '#3700b3');
-  const textOnPrimaryColor = decodeURIComponent(url.searchParams.get('textOnPrimaryColor') || 'white');
-  const backgroundColor = decodeURIComponent(url.searchParams.get('backgroundColor') || '#f5f5f5');
-  const nonaryColor = decodeURIComponent(url.searchParams.get('nonaryColor') || '#e0e0e0');
-  const octonaryColor = decodeURIComponent(url.searchParams.get('octonaryColor') || 'white');
+  // Simplified dark/light theme detection for modern UI
+  const theme = url.searchParams.get('theme') === 'dark' ? 'dark' : 'light';
+  const accentColor = theme === 'dark' ? '#BB86FC' : '#6200EE';
+  const chatBackground = theme === 'dark' ? 'rgba(18,18,18,0.8)' : 'rgba(255,255,255,0.8)';
+  const userMessageBg = accentColor;
+  const aiMessageBg = theme === 'dark' ? '#333333' : 'rgba(255,255,255,0.6)';
+  const aiMessageColor = theme === 'dark' ? 'white' : '#333333';
 
   return `
 <!DOCTYPE html>
@@ -15,42 +15,27 @@ export function generateWidgetHTML(url) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Azzar AI Chat</title>
   <style>
-    :root {
-      --primary-color: ${primaryColor};
-      --primary-dark: ${primaryDarkColor};
-      --on-primary: ${textOnPrimaryColor};
-      --background: ${backgroundColor};
-      --nonary-color: ${nonaryColor};
-      --octonary-color: ${octonaryColor};
-    }
-    
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
     body {
-      font-family: 'Roboto', Arial, sans-serif;
+      margin: 0;
       height: 100vh;
       display: flex;
-      flex-direction: column;
-      background-color: var(--background, #f5f5f5);
+      justify-content: center;
+      align-items: center;
+      background: ${chatBackground};
+      backdrop-filter: blur(20px);
+      font-family: 'Roboto', Arial, sans-serif;
     }
-    
     .chat-container {
-      flex: 1;
+      width: 360px;
+      height: 500px;
+      border-radius: 16px;
+      background: ${chatBackground};
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
       display: flex;
       flex-direction: column;
-      height: 100%;
-      max-width: 100%;
-      width: 100%; /* Ensure it takes up available space */
-      margin: 0 auto;
       overflow: hidden;
-      background-color: var(--octonary-color, white);
-      padding: 0 5px; /* Add a bit of padding on the sides */
     }
-    
     .messages {
       flex: 1;
       overflow-y: auto;
@@ -67,16 +52,16 @@ export function generateWidgetHTML(url) {
     }
     
     .user-message {
-      background-color: var(--primary-color, #6200ee);
-      color: var(--on-primary, white);
+      background-color: ${userMessageBg};
+      color: ${aiMessageColor};
       align-self: flex-end;
       margin-left: auto;
       border-bottom-right-radius: 4px;
     }
     
     .ai-message {
-      background-color: var(--nonary-color, #e0e0e0);
-      color: var(--primary-color, #333);
+      background-color: ${aiMessageBg};
+      color: ${aiMessageColor};
       align-self: flex-start;
       border-bottom-left-radius: 4px;
     }
@@ -102,14 +87,14 @@ export function generateWidgetHTML(url) {
     .input-container {
       display: flex;
       padding: 12px;
-      border-top: 1px solid var(--nonary-color, #e0e0e0);
-      background-color: var(--octonary-color, white);
+      border-top: 1px solid ${aiMessageBg};
+      background-color: ${chatBackground};
     }
     
     .input-field {
       flex: 1;
       padding: 12px 16px;
-      border: 1px solid var(--nonary-color, #e0e0e0);
+      border: 1px solid ${aiMessageBg};
       border-radius: 24px;
       font-size: 14px;
       outline: none;
@@ -117,12 +102,12 @@ export function generateWidgetHTML(url) {
     }
     
     .input-field:focus {
-      border-color: var(--primary-color, #6200ee);
+      border-color: ${accentColor};
     }
     
     .send-button {
-      background-color: var(--primary-color, #6200ee);
-      color: var(--on-primary, white);
+      background-color: ${accentColor};
+      color: ${aiMessageColor};
       border: none;
       border-radius: 50%;
       width: 40px;
@@ -136,7 +121,7 @@ export function generateWidgetHTML(url) {
     }
     
     .send-button:hover {
-      background-color: var(--primary-dark, #3700b3);
+      background-color: ${theme === 'dark' ? '#BB86FC' : '#3700b3'};
     }
     
     .send-icon {
@@ -146,8 +131,8 @@ export function generateWidgetHTML(url) {
     
     .clear-button {
       background-color: transparent;
-      color: var(--primary-color, #6200ee);
-      border: 1px solid var(--nonary-color, #e0e0e0);
+      color: ${accentColor};
+      border: 1px solid ${aiMessageBg};
       border-radius: 50%;
       width: 40px;
       height: 40px;
@@ -160,7 +145,7 @@ export function generateWidgetHTML(url) {
     }
     
     .clear-button:hover {
-      background-color: var(--nonary-color, #e0e0e0);
+      background-color: ${aiMessageBg};
     }
     
     .clear-icon {
@@ -171,7 +156,7 @@ export function generateWidgetHTML(url) {
     .typing-indicator {
       display: none;
       padding: 12px 16px;
-      background-color: var(--nonary-color, #e0e0e0);
+      background-color: ${aiMessageBg};
       border-radius: 18px;
       margin-bottom: 16px;
       max-width: 80%;
@@ -188,7 +173,7 @@ export function generateWidgetHTML(url) {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background-color: var(--primary-color, #6200ee);
+      background-color: ${accentColor};
       margin-right: 4px;
       animation: typing 1.4s infinite ease-in-out;
     }
@@ -215,9 +200,9 @@ export function generateWidgetHTML(url) {
     }
     
     .ai-message a {
-      color: var(--primary-color, #6200ee);
+      color: ${accentColor};
       text-decoration: none; /* Remove underline by default */
-      border-bottom: 1px solid rgba(98, 0, 238, 0.4); /* Subtle bottom border */
+      border-bottom: 1px solid rgba(${accentColor}, 0.4); /* Subtle bottom border */
       word-break: break-all;
       font-weight: 500;
       transition: all 0.2s ease-in-out;
@@ -230,8 +215,8 @@ export function generateWidgetHTML(url) {
     .ai-message a:hover {
       text-decoration: none;
       background-color: #f0e6ff; /* Light purple background */
-      color: var(--primary-color, #6200ee);
-      box-shadow: 0 1px 0 var(--primary-color, #6200ee);
+      color: ${accentColor};
+      box-shadow: 0 1px 0 ${accentColor};
       transform: translateY(-1px);
     }
   </style>
