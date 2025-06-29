@@ -1,12 +1,16 @@
-# Azzar AI Chat Widget
+# Azzar AI Chat Widget (featuring FREA)
 
-A modern, embeddable AI chat widget powered by Cloudflare Workers and Llama 3.1, designed for easy integration, beautiful theming, and a highly personalized AI persona.
+A modern, embeddable AI chat widget powered by Cloudflare Workers and Llama 3.1, featuring **FREA**, a highly personalized AI persona designed for easy integration and beautiful theming.
 
 ## Features
 
+- **Specialized AI Persona (FREA):** An AI assistant specializing in web development, microcontrollers, and IoT, with knowledge about its creator.
+- **Live Wikipedia Integration:** Automatically queries Wikipedia for factual questions (e.g., "what is React?", "who is Grace Hopper?") to provide accurate summaries.
 - **AI-generated, language-aware welcome message** (adapts to your website's language)
+- **Advanced Response Cleaning:** Intelligently deduplicates and formats AI responses for a clearer and more concise reading experience.
+- **Automatic Dark/Light Theming:** Switches between a sleek dark and light theme based on your OS settings (`prefers-color-scheme`).
+- **Modern Glassmorphic UI:** A beautiful, modern interface with blur effects inspired by Material You.
 - Responsive, mobile-friendly design
-- Automatically adapts to your website's color scheme via CSS variables
 - Conversation history is persisted in local storage
 - Simple integration: just add one script tag
 - API endpoint for custom integrations
@@ -19,36 +23,15 @@ Add the following script to your website:
 <script src="https://<your-domain-or-worker>/widget.js"></script>
 ```
 
-## Customization
+## Theming
 
-### 1. Color Theming (via CSS Variables)
+The widget features a modern, glassmorphic design that automatically adapts to the user's system-wide dark or light mode preference (`prefers-color-scheme`).
 
-The widget automatically adapts to your website's color scheme using CSS variables. You can override these in your site's CSS or in a `<style>` block:
+- **Automatic Mode Switching:** The theme changes instantly when the user switches their OS theme.
+- **No Configuration Needed:** The light and dark themes are built-in and require no setup.
+- **Customization via CSS:** While the core theme is automatic, you can still override the widget's styles using your own CSS by targeting its classes (e.g., `.azzar-chat-widget`, `.azzar-chat-window`).
 
-| CSS Variable           | Description                                 | Default Value   |
-|-----------------------|---------------------------------------------|-----------------|
-| `--primary-color`     | Main accent color (buttons, highlights)     | `#6200ee`       |
-| `--primary-dark`      | Darker shade for hover/focus                | `#3700b3`       |
-| `--on-primary`        | Text color on primary backgrounds           | `white`         |
-| `--background`        | Chat window background                      | `#f5f5f5`       |
-| `--nonary-color`      | AI message background                       | `#e0e0e0`       |
-| `--octonary-color`    | Chat container background                   | `white`         |
-
-**Example:**
-```css
-:root {
-  --primary-color: #009688;
-  --primary-dark: #00695c;
-  --on-primary: #fff;
-  --background: #fafafa;
-  --nonary-color: #e3f2fd;
-  --octonary-color: #fff;
-}
-```
-
-You can set these globally or on a specific container. The widget will pick up changes automatically (even if you change them dynamically for dark/light mode).
-
-### 2. Language Detection & Welcome Message
+## Language Detection & Welcome Message
 
 - The widget detects the language in the following order:
   1. `window.AZZAR_CHAT_CONFIG.lang` (set before the widget loads)
@@ -56,8 +39,8 @@ You can set these globally or on a specific container. The widget will pick up c
   3. `<html lang="...">`
   4. `navigator.language`
 - On load, it requests a welcome message from `/api/welcome-message?lang=...`.
-- The backend uses the AI persona (from `systemInstruction.txt`) to generate a short, friendly welcome message in the requested language.
-- The welcome message will always match your AI's persona and the user's language.
+- The backend uses FREA's AI persona (from `systemInstruction.txt`) to generate a short, friendly welcome message in the requested language.
+- The welcome message will always match FREA's persona and the user's language.
 
 **Ways to set the language:**
 
@@ -100,7 +83,7 @@ Brief overview:
 - **GET `/widget.js`**: Serves the widget's JavaScript.
 - **GET `/widget-iframe`**: Serves the widget's iframe HTML.
 - **POST `/api/chat`**: Send a message and conversation history, get an AI response.
-- **GET `/api/welcome-message?lang=xx`**: Get a language-aware, AI-generated welcome message.
+- **GET `/api/welcome-message?lang=xx`**: Get a language-aware, AI-generated welcome message from FREA.
 - **GET `/api/cache-stats`**: Get statistics about the in-memory cache (for debugging).
 
 ## Example: Full Integration
@@ -111,16 +94,6 @@ Brief overview:
 <head>
   <meta charset="UTF-8">
   <title>My Site with Azzar AI Chat</title>
-  <style>
-    :root {
-      --primary-color: #ff5722;
-      --primary-dark: #bf360c;
-      --on-primary: #fff;
-      --background: #fbe9e7;
-      --nonary-color: #ffe0b2;
-      --octonary-color: #fff3e0;
-    }
-  </style>
 </head>
 <body>
   <!-- Your site content -->
@@ -130,13 +103,13 @@ Brief overview:
 ```
 
 - The widget will use Bahasa Indonesia for the welcome message and UI.
-- All colors will match your custom theme.
+- The theme will automatically be light or dark based on the user's OS setting.
 
 ## Updating the AI Persona
 
-- Edit `src/systemInstruction.txt` to change the AI's persona, tone, or expertise.
-- Deploy using `./deploy.sh` to sync the latest persona to Cloudflare KV and your Worker.
-- The welcome message and all AI responses will immediately reflect your changes.
+- Edit `src/systemInstruction.txt` to change FREA's persona, tone, or expertise.
+- Deploy using `wrangler deploy` to sync the latest persona to your Worker.
+- The welcome message and all AI responses from FREA will immediately reflect your changes.
 
 ## Advanced
 
@@ -146,7 +119,7 @@ Brief overview:
 
 ## Troubleshooting
 
-- If the welcome message or persona doesn't update, make sure you have run `./deploy.sh` and the latest `systemInstruction.txt` is in Cloudflare KV.
+- If the welcome message or persona doesn't update, make sure you have deployed the latest `systemInstruction.txt` to your worker.
 - Check your browser's console for errors if the widget doesn't appear or style correctly.
 
 ## License
@@ -160,7 +133,7 @@ The included demo page showcases robust, instant language switching for the chat
 - **How it works:**
   - The demo page (parent) sends a `postMessage` to the widget iframe when you click a language button.
   - The widget iframe listens for this message and calls its internal `window.azzarChatSetLang` API.
-  - The welcome message is regenerated immediately in the selected language, and the chat resets.
+  - FREA's welcome message is regenerated immediately in the selected language, and the chat resets.
 
 **Parent page code (demo):**
 ```js
@@ -191,7 +164,7 @@ window.addEventListener('message', function(event) {
 
 ## Supported Languages
 
-The widget supports instant welcome message generation in all these languages (and more can be added):
+The widget backend can generate a welcome message in any language the AI model supports. The following languages are explicitly mapped to their full names for generating the welcome message prompt, but other language codes will also work:
 
 - en: English
 - id: Bahasa Indonesia
@@ -211,27 +184,12 @@ The widget supports instant welcome message generation in all these languages (a
 - hi: Hindi
 - th: Thai
 - vi: Vietnamese
-- nl: Dutch
-- tr: Turkish
-- pl: Polish
-- sv: Swedish
-- fi: Finnish
-- da: Danish
-- no: Norwegian
-- ro: Romanian
-- hu: Hungarian
-- cs: Czech
-- el: Greek
-- he: Hebrew
-- uk: Ukrainian
-- fa: Persian
-- ur: Urdu
 
 ## Adding More Languages
 
-To add more languages to the demo or widget:
-- Add a new button to the demo page's language switcher UI and update the `postLangToIframe` handler.
-- Add the language code and full name to the `langMap` in the backend (`src/index.js`).
+To add more languages to the demo or improve welcome message generation:
+- **Demo Page:** Add a new button to the demo page's language switcher UI and update the `postLangToIframe` handler.
+- **Backend:** Add the language code and full name to the `langMap` in `src/index.js` for more precise welcome message prompts.
 - The widget and backend will handle the rest automatically.
 
 ## Advanced Integration
