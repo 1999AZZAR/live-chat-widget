@@ -140,6 +140,16 @@ export function generateWidgetJS(origin) {
       // Inject enhanced Material You button and window styles
       const style = document.createElement('style');
       style.textContent = \`
+        @keyframes wave {
+          from {
+            transform: scale(1);
+            opacity: 0.4;
+          }
+          to {
+            transform: scale(2.5);
+            opacity: 0;
+          }
+        }
         .azzar-chat-widget {
           position: fixed;
           bottom: 20px;
@@ -149,49 +159,40 @@ export function generateWidgetJS(origin) {
         }
         .azzar-chat-button {
           position: relative;
-          width: 64px;
-          height: 64px;
+          width: 60px;
+          height: 60px;
           border-radius: 50%;
-          background: \${buttonBg};
-          border: 2px solid \${accentColor};
-          backdrop-filter: blur(10px);
+          background: \${accentColor};
+          border: none;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 8px 24px \${accentColor}40;
           cursor: pointer;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        .azzar-chat-button:hover {
-          transform: scale(1.1);
-          box-shadow: 0 12px 48px rgba(0,0,0,0.3);
-        }
-        .azzar-chat-button::after {
+        .azzar-chat-button::before {
           content: '';
           position: absolute;
-          top: 0; left: 0;
           width: 100%;
           height: 100%;
-          background: \${accentColor}33;
           border-radius: 50%;
-          transform: scale(0);
-          opacity: 0;
-          transition: transform 0.5s, opacity 0.5s;
+          background-color: \${accentColor};
+          animation: wave 2s infinite ease-out;
+          z-index: -1;
         }
-        .azzar-chat-button:active::after {
-          transform: scale(1.5);
-          opacity: 0.5;
-          transition: transform 0s, opacity 0s;
+        .azzar-chat-button:hover {
+          transform: scale(1.1);
+          box-shadow: 0 6px 16px rgba(0,0,0,0.2), 0 12px 32px \${accentColor}60;
         }
         .azzar-chat-icon {
           width: 32px;
           height: 32px;
-          fill: \${accentColor};
-          transition: transform 0.2s ease;
+          transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+          color: \${hostTheme['on-primary'] || (isDarkMode ? '#000' : '#fff')};
         }
         .azzar-chat-button:hover .azzar-chat-icon {
-          transform: scale(1.2);
+          transform: rotate(15deg) scale(1.1);
         }
         .azzar-chat-window {
           position: absolute;
@@ -228,7 +229,7 @@ export function generateWidgetJS(origin) {
       
       const button = document.createElement('div');
       button.className = 'azzar-chat-button';
-      button.innerHTML = '<svg class="azzar-chat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/><path d="M7 9h10v2H7zm0-3h10v2H7zm0 6h7v2H7z"/></svg>';
+      button.innerHTML = '<svg class="azzar-chat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM18 14H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>';
       
       const chatWindow = document.createElement('div');
       chatWindow.className = 'azzar-chat-window';
