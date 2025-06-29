@@ -74,10 +74,24 @@ export function generateWidgetJS(origin) {
         const rootStyle = getComputedStyle(document.documentElement);
         const bodyStyle = getComputedStyle(document.body);
 
+        // Helper to convert any CSS color string to a reliable RGB format
+        function getRgb(colorStr) {
+          if (!colorStr) return null;
+          let div = document.createElement('div');
+          div.style.color = colorStr;
+          // The browser will compute the color into a standardized RGB format.
+          document.body.appendChild(div);
+          let rgbStr = getComputedStyle(div).color;
+          document.body.removeChild(div);
+          return rgbStr;
+        }
+        
         // Helper to calculate the luminance of a color to determine if it's light or dark
         function getLuminance(color) {
-          if (!color || typeof color !== 'string') return 0.5; // Default to neutral
-          const rgb = color.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
+          const rgbStr = getRgb(color);
+          if (!rgbStr) return 0.5; // Default to neutral if color can't be parsed
+
+          const rgb = rgbStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
           if (!rgb) return 0.5; // Can't parse, assume neutral
           const r = parseInt(rgb[1]) / 255;
           const g = parseInt(rgb[2]) / 255;
@@ -101,8 +115,15 @@ export function generateWidgetJS(origin) {
         };
 
         // Infer theme mode from the background color's luminance, overriding OS settings
-        const bgColor = detectedTheme['background'] || bodyStyle.backgroundColor;
-        if (bgColor) {
+        let bgColor = detectedTheme['background'] || bodyStyle.backgroundColor;
+        const bodyBgIsTransparent = !bgColor || bgColor === 'transparent' || bgColor === 'rgba(0, 0, 0, 0)';
+
+        // If body background is transparent, check the html element's background instead.
+        if (bodyBgIsTransparent) {
+            bgColor = rootStyle.backgroundColor;
+        }
+        
+        if (bgColor && bgColor !== 'transparent' && bgColor !== 'rgba(0, 0, 0, 0)') {
             if (!detectedTheme['background']) detectedTheme['background'] = bgColor;
             const luminance = getLuminance(bgColor);
             // This is the key: a theme mode based on the site's content, not the OS.
@@ -152,6 +173,14 @@ export function generateWidgetJS(origin) {
             const sampleButton = document.querySelector('button, input[type="submit"]');
             if (sampleButton) {
                 detectedTheme['border-radius'] = getComputedStyle(sampleButton).borderRadius;
+            }
+        }
+        
+        // Sanity check for border-radius to keep it within reasonable bounds
+        if (detectedTheme['border-radius']) {
+            const radius = parseFloat(detectedTheme['border-radius']);
+            if (radius < 4 || radius > 30) {
+                delete detectedTheme['border-radius']; // Reset to default if value is extreme
             }
         }
 
