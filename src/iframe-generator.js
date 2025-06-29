@@ -1,11 +1,50 @@
 export function generateWidgetHTML(url) {
-  // Simplified dark/light theme detection for modern UI
-  const theme = url.searchParams.get('theme') === 'dark' ? 'dark' : 'light';
-  const accentColor = theme === 'dark' ? '#BB86FC' : '#6200EE';
-  const chatBackground = theme === 'dark' ? 'rgba(18,18,18,0.8)' : 'rgba(255,255,255,0.8)';
-  const userMessageBg = accentColor;
-  const aiMessageBg = theme === 'dark' ? '#333333' : 'rgba(255,255,255,0.6)';
-  const aiMessageColor = theme === 'dark' ? 'white' : '#333333';
+  // Get URL parameters
+  const params = url.searchParams;
+  
+  // Step 1: Determine the base theme (dark/light) as a fallback
+  const baseTheme = params.get('theme') === 'dark' ? 'dark' : 'light';
+
+  // Step 2: Define default color schemes for dark and light modes
+  const colorDefaults = {
+    light: {
+      accentColor: '#6200EE',
+      accentColorDark: '#3700b3',
+      onAccentColor: 'white',
+      chatContainerBg: 'rgba(255, 255, 255, 0.8)',
+      chatWindowBg: '#f5f5f5',
+      aiMessageBg: '#e0e0e0',
+      aiMessageColor: '#333333',
+      textColor: '#333333'
+    },
+    dark: {
+      accentColor: '#BB86FC',
+      accentColorDark: '#D0BCFF',
+      onAccentColor: '#381E72',
+      chatContainerBg: 'rgba(18, 18, 18, 0.8)',
+      chatWindowBg: '#121212',
+      aiMessageBg: '#333333',
+      aiMessageColor: 'white',
+      textColor: 'white'
+    }
+  };
+
+  // Step 3: Get colors from URL params, or use the defaults for the base theme
+  const colors = {
+    accentColor: params.get('primary-color') || colorDefaults[baseTheme].accentColor,
+    accentColorDark: params.get('primary-dark') || colorDefaults[baseTheme].accentColorDark,
+    onAccentColor: params.get('on-primary') || colorDefaults[baseTheme].onAccentColor,
+    chatWindowBg: params.get('background') || colorDefaults[baseTheme].chatWindowBg,
+    aiMessageBg: params.get('nonary-color') || colorDefaults[baseTheme].aiMessageBg,
+    chatContainerBg: params.get('octonary-color') || colorDefaults[baseTheme].chatContainerBg,
+    aiMessageColor: colorDefaults[baseTheme].aiMessageColor,
+    textColor: colorDefaults[baseTheme].textColor
+  };
+  
+  // Step 4: Derive final colors for the UI components
+  const userMessageBg = colors.accentColor;
+  const userMessageColor = colors.onAccentColor;
+  const sendButtonHoverBg = colors.accentColorDark;
 
   return `
 <!DOCTYPE html>
@@ -21,7 +60,7 @@ export function generateWidgetHTML(url) {
       display: flex;
       justify-content: center;
       align-items: center;
-      background: ${chatBackground};
+      background: ${colors.chatWindowBg};
       backdrop-filter: blur(20px);
       font-family: 'Roboto', Arial, sans-serif;
     }
@@ -29,12 +68,13 @@ export function generateWidgetHTML(url) {
       width: 360px;
       height: 500px;
       border-radius: 16px;
-      background: ${chatBackground};
+      background: ${colors.chatContainerBg};
       backdrop-filter: blur(20px);
       box-shadow: 0 8px 32px rgba(0,0,0,0.2);
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      color: ${colors.textColor};
     }
     .messages {
       flex: 1;
@@ -53,15 +93,15 @@ export function generateWidgetHTML(url) {
     
     .user-message {
       background-color: ${userMessageBg};
-      color: ${aiMessageColor};
+      color: ${userMessageColor};
       align-self: flex-end;
       margin-left: auto;
       border-bottom-right-radius: 4px;
     }
     
     .ai-message {
-      background-color: ${aiMessageBg};
-      color: ${aiMessageColor};
+      background-color: ${colors.aiMessageBg};
+      color: ${colors.aiMessageColor};
       align-self: flex-start;
       border-bottom-left-radius: 4px;
     }
@@ -87,27 +127,29 @@ export function generateWidgetHTML(url) {
     .input-container {
       display: flex;
       padding: 12px;
-      border-top: 1px solid ${aiMessageBg};
-      background-color: ${chatBackground};
+      border-top: 1px solid ${colors.aiMessageBg};
+      background-color: ${colors.chatContainerBg};
     }
     
     .input-field {
       flex: 1;
       padding: 12px 16px;
-      border: 1px solid ${aiMessageBg};
+      border: 1px solid ${colors.aiMessageBg};
       border-radius: 24px;
       font-size: 14px;
       outline: none;
       transition: border-color 0.2s;
+      background-color: ${colors.chatWindowBg};
+      color: ${colors.textColor};
     }
     
     .input-field:focus {
-      border-color: ${accentColor};
+      border-color: ${colors.accentColor};
     }
     
     .send-button {
-      background-color: ${accentColor};
-      color: ${aiMessageColor};
+      background-color: ${colors.accentColor};
+      color: ${userMessageColor};
       border: none;
       border-radius: 50%;
       width: 40px;
@@ -121,7 +163,7 @@ export function generateWidgetHTML(url) {
     }
     
     .send-button:hover {
-      background-color: ${theme === 'dark' ? '#BB86FC' : '#3700b3'};
+      background-color: ${sendButtonHoverBg};
     }
     
     .send-icon {
@@ -131,8 +173,8 @@ export function generateWidgetHTML(url) {
     
     .clear-button {
       background-color: transparent;
-      color: ${accentColor};
-      border: 1px solid ${aiMessageBg};
+      color: ${colors.accentColor};
+      border: 1px solid ${colors.aiMessageBg};
       border-radius: 50%;
       width: 40px;
       height: 40px;
@@ -145,7 +187,7 @@ export function generateWidgetHTML(url) {
     }
     
     .clear-button:hover {
-      background-color: ${aiMessageBg};
+      background-color: ${colors.aiMessageBg};
     }
     
     .clear-icon {
@@ -156,7 +198,7 @@ export function generateWidgetHTML(url) {
     .typing-indicator {
       display: none;
       padding: 12px 16px;
-      background-color: ${aiMessageBg};
+      background-color: ${colors.aiMessageBg};
       border-radius: 18px;
       margin-bottom: 16px;
       max-width: 80%;
@@ -173,7 +215,7 @@ export function generateWidgetHTML(url) {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background-color: ${accentColor};
+      background-color: ${colors.accentColor};
       margin-right: 4px;
       animation: typing 1.4s infinite ease-in-out;
     }
@@ -200,9 +242,9 @@ export function generateWidgetHTML(url) {
     }
     
     .ai-message a {
-      color: ${accentColor};
+      color: ${colors.accentColor};
       text-decoration: none; /* Remove underline by default */
-      border-bottom: 1px solid rgba(${accentColor}, 0.4); /* Subtle bottom border */
+      border-bottom: 1px solid rgba(${colors.accentColor}, 0.4); /* Subtle bottom border */
       word-break: break-all;
       font-weight: 500;
       transition: all 0.2s ease-in-out;
@@ -215,8 +257,8 @@ export function generateWidgetHTML(url) {
     .ai-message a:hover {
       text-decoration: none;
       background-color: #f0e6ff; /* Light purple background */
-      color: ${accentColor};
-      box-shadow: 0 1px 0 ${accentColor};
+      color: ${colors.accentColor};
+      box-shadow: 0 1px 0 ${colors.accentColor};
       transform: translateY(-1px);
     }
   </style>

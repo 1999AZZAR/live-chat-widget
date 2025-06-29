@@ -63,11 +63,43 @@ export function generateWidgetJS(origin) {
   
     // Simplified dark/light theme detection and modern Material You glassmorphic UI
     const createWidget = () => {
+      // Step 1: Base theme detection
       const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const theme = isDarkMode ? 'dark' : 'light';
-      const accentColor = theme === 'dark' ? '#BB86FC' : '#6200EE';
+      
+      // Step 2: Detect custom theme colors from host page's CSS variables
+      function getThemeColors() {
+        const style = getComputedStyle(document.documentElement);
+        const colors = {
+          'primary-color': style.getPropertyValue('--primary-color').trim(),
+          'primary-dark': style.getPropertyValue('--primary-dark').trim(),
+          'on-primary': style.getPropertyValue('--on-primary').trim(),
+          'background': style.getPropertyValue('--background').trim(),
+          'nonary-color': style.getPropertyValue('--nonary-color').trim(), // AI message background
+          'octonary-color': style.getPropertyValue('--octonary-color').trim() // Chat container background
+        };
+        // Filter out any empty values so we don't pass them as params
+        Object.keys(colors).forEach(key => {
+          if (!colors[key]) {
+            delete colors[key];
+          }
+        });
+        return colors;
+      }
+
+      const themeColors = getThemeColors();
+      
+      // Step 3: Build the iframe URL with theme and color parameters
+      const queryParams = new URLSearchParams({ theme });
+      for (const [key, value] of Object.entries(themeColors)) {
+        queryParams.set(key, value);
+      }
+      const iframeSrc = \`\${origin}/widget-iframe?\${queryParams.toString()}\`;
+      
+      // Use a default accent color for the button if not defined, fallback to dark/light theme
+      const accentColor = themeColors['primary-color'] || (theme === 'dark' ? '#BB86FC' : '#6200EE');
       const buttonBg = theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)';
-      const windowBg = theme === 'dark' ? 'rgba(18,18,18,0.8)' : 'rgba(255,255,255,0.8)';
+      const windowBg = themeColors['octonary-color'] || (theme === 'dark' ? 'rgba(18,18,18,0.8)' : 'rgba(255,255,255,0.8)');
       
       // Inject enhanced Material You button and window styles
       const style = document.createElement('style');
@@ -167,7 +199,7 @@ export function generateWidgetJS(origin) {
       
       const iframe = document.createElement('iframe');
       iframe.className = 'azzar-chat-iframe';
-      iframe.src = '${origin}/widget-iframe?theme=' + theme;
+      iframe.src = iframeSrc;
       iframe.title = 'Chat with Azzar';
       
       chatWindow.appendChild(iframe);

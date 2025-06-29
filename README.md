@@ -23,13 +23,44 @@ Add the following script to your website:
 <script src="https://<your-domain-or-worker>/widget.js"></script>
 ```
 
-## Theming
+## Theming & Customization
 
-The widget features a modern, glassmorphic design that automatically adapts to the user's system-wide dark or light mode preference (`prefers-color-scheme`).
+The widget features two powerful theming modes that work together:
+
+### 1. Automatic Color Theming (via CSS Variables)
+
+The widget automatically adapts to your website's color scheme by reading your existing CSS variables. To enable this, define some or all of the following variables in your site's CSS (e.g., in a `:root` block):
+
+| CSS Variable | Description | Default Value (Light) | Default Value (Dark) |
+|---|---|---|---|
+| `--primary-color` | Main accent color (buttons, user messages) | `#6200EE` | `#BB86FC` |
+| `--primary-dark` | Darker shade for hover/focus states | `#3700b3` | `#D0BCFF` |
+| `--on-primary` | Text color on primary backgrounds | `white` | `#381E72` |
+| `--background` | Chat window background | `#f5f5f5` | `#121212` |
+| `--nonary-color` | AI message background | `#e0e0e0` | `#333333` |
+| `--octonary-color` | Chat container background (glassmorphic layer) | `rgba(255,255,255,0.8)` | `rgba(18,18,18,0.8)` |
+
+**Example:**
+```css
+:root {
+  --primary-color: #009688;
+  --primary-dark: #00695c;
+  --on-primary: #fff;
+  --background: #fafafa;
+  --nonary-color: #e3f2fd;
+  --octonary-color: #ffffff;
+}
+```
+
+The widget will automatically detect any variables you've set and apply them. Any variables you don't set will fall back to the defaults.
+
+### 2. Automatic Dark/Light Mode
+
+If no CSS variables are detected, the widget falls back to its built-in themes. It automatically adapts to the user's system-wide dark or light mode preference (`prefers-color-scheme`).
 
 - **Automatic Mode Switching:** The theme changes instantly when the user switches their OS theme.
 - **No Configuration Needed:** The light and dark themes are built-in and require no setup.
-- **Customization via CSS:** While the core theme is automatic, you can still override the widget's styles using your own CSS by targeting its classes (e.g., `.azzar-chat-widget`, `.azzar-chat-window`).
+- **Customization via CSS:** You can always override the widget's styles using your own CSS by targeting its classes (e.g., `.azzar-chat-widget`, `.azzar-chat-window`).
 
 ## Language Detection & Welcome Message
 
@@ -94,6 +125,17 @@ Brief overview:
 <head>
   <meta charset="UTF-8">
   <title>My Site with Azzar AI Chat</title>
+  <style>
+    /* Example: A custom green theme */
+    :root {
+      --primary-color: #4CAF50;
+      --primary-dark: #388E3C;
+      --on-primary: white;
+      --background: #E8F5E9;
+      --nonary-color: #C8E6C9;
+      --octonary-color: rgba(232, 245, 233, 0.85);
+    }
+  </style>
 </head>
 <body>
   <!-- Your site content -->
@@ -102,8 +144,8 @@ Brief overview:
 </html>
 ```
 
-- The widget will use Bahasa Indonesia for the welcome message and UI.
-- The theme will automatically be light or dark based on the user's OS setting.
+- The widget will use Bahasa Indonesia for the welcome message.
+- The theme will automatically match the custom green colors defined in the CSS.
 
 ## Updating the AI Persona
 
