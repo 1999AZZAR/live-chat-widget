@@ -66,14 +66,26 @@ export function generateWidgetJS(origin) {
   
     // Simplified dark/light theme detection and modern Material You glassmorphic UI
     const createWidget = () => {
-      // Step 1: Base theme detection
-      const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const theme = isDarkMode ? 'dark' : 'light';
+      // The OS theme is now just a fallback, not the primary source of truth.
+      const osTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       
       // Step 2: Advanced theme detection
       function detectHostTheme() {
         const rootStyle = getComputedStyle(document.documentElement);
         const bodyStyle = getComputedStyle(document.body);
+
+        // Helper to calculate the luminance of a color to determine if it's light or dark
+        function getLuminance(color) {
+          if (!color || typeof color !== 'string') return 0.5; // Default to neutral
+          const rgb = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (!rgb) return 0.5; // Can't parse, assume neutral
+          const r = parseInt(rgb[1]) / 255;
+          const g = parseInt(rgb[2]) / 255;
+          const b = parseInt(rgb[3]) / 255;
+          // Formula for perceived luminance
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        }
+
         let detectedTheme = {
           // Priority 1: Explicit CSS variables
           'primary-color': rootStyle.getPropertyValue('--primary-color').trim(),
@@ -88,8 +100,16 @@ export function generateWidgetJS(origin) {
           'font-family': bodyStyle.fontFamily
         };
 
-        // Priority 2: Infer from computed styles if variables are missing
-        if (!detectedTheme['background']) detectedTheme['background'] = bodyStyle.backgroundColor;
+        // Infer theme mode from the background color's luminance, overriding OS settings
+        const bgColor = detectedTheme['background'] || bodyStyle.backgroundColor;
+        if (bgColor) {
+            if (!detectedTheme['background']) detectedTheme['background'] = bgColor;
+            const luminance = getLuminance(bgColor);
+            // This is the key: a theme mode based on the site's content, not the OS.
+            detectedTheme['detected-theme-mode'] = luminance > 0.5 ? 'light' : 'dark';
+        }
+
+        // Priority 2: Infer other styles if variables are missing
         if (!detectedTheme['text-color']) detectedTheme['text-color'] = bodyStyle.color;
 
         // Infer accent colors from a prominent button or link, with Tailwind CSS support
@@ -148,16 +168,19 @@ export function generateWidgetJS(origin) {
 
       const hostTheme = detectHostTheme();
       
+      // The final theme prioritizes the page's detected mode over the OS mode.
+      const finalTheme = hostTheme['detected-theme-mode'] || osTheme;
+      
       // Step 3: Build the iframe URL with theme and color parameters
-      const queryParams = new URLSearchParams({ theme });
+      const queryParams = new URLSearchParams({ theme: finalTheme });
       for (const [key, value] of Object.entries(hostTheme)) {
         queryParams.set(key, value);
       }
       const iframeSrc = \`\${workerOrigin}/widget-iframe?\${queryParams.toString()}\`;
       
-      const accentColor = hostTheme['primary-color'] || (theme === 'dark' ? '#BB86FC' : '#6200EE');
-      const buttonBg = theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)';
-      const windowBg = hostTheme['octonary-color'] || (theme === 'dark' ? 'rgba(18,18,18,0.8)' : 'rgba(255,255,255,0.8)');
+      const accentColor = hostTheme['primary-color'] || (finalTheme === 'dark' ? '#BB86FC' : '#6200EE');
+      const buttonBg = finalTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)';
+      const windowBg = hostTheme['octonary-color'] || (finalTheme === 'dark' ? 'rgba(18,18,18,0.8)' : 'rgba(255,255,255,0.8)');
       
       // Inject enhanced Material You button and window styles
       const style = document.createElement('style');
@@ -211,7 +234,7 @@ export function generateWidgetJS(origin) {
           width: 32px;
           height: 32px;
           transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-          color: \${hostTheme['on-primary'] || (isDarkMode ? '#000' : '#fff')};
+          color: \${hostTheme['on-primary'] || (finalTheme === 'dark' ? '#000' : '#fff')};
         }
         .azzar-chat-button:hover .azzar-chat-icon {
           transform: rotate(15deg) scale(1.1);
