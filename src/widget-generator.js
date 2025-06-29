@@ -91,7 +91,7 @@ export function generateWidgetJS(origin) {
           const rgbStr = getRgb(color);
           if (!rgbStr) return 0.5; // Default to neutral if color can't be parsed
 
-          const rgb = rgbStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          const rgb = rgbStr.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
           if (!rgb) return 0.5; // Can't parse, assume neutral
           const r = parseInt(rgb[1]) / 255;
           const g = parseInt(rgb[2]) / 255;
