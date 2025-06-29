@@ -70,40 +70,72 @@ export function generateWidgetJS(origin) {
       const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const theme = isDarkMode ? 'dark' : 'light';
       
-      // Step 2: Detect custom theme colors from host page's CSS variables
-      function getThemeColors() {
-        const style = getComputedStyle(document.documentElement);
-        const colors = {
-          'primary-color': style.getPropertyValue('--primary-color').trim(),
-          'primary-dark': style.getPropertyValue('--primary-dark').trim(),
-          'on-primary': style.getPropertyValue('--on-primary').trim(),
-          'background': style.getPropertyValue('--background').trim(),
-          'nonary-color': style.getPropertyValue('--nonary-color').trim(), // AI message background
-          'octonary-color': style.getPropertyValue('--octonary-color').trim() // Chat container background
+      // Step 2: Advanced theme detection
+      function detectHostTheme() {
+        const rootStyle = getComputedStyle(document.documentElement);
+        const bodyStyle = getComputedStyle(document.body);
+        let detectedTheme = {
+          // Priority 1: Explicit CSS variables
+          'primary-color': rootStyle.getPropertyValue('--primary-color').trim(),
+          'primary-dark': rootStyle.getPropertyValue('--primary-dark').trim(),
+          'on-primary': rootStyle.getPropertyValue('--on-primary').trim(),
+          'background': rootStyle.getPropertyValue('--background').trim(),
+          'text-color': rootStyle.getPropertyValue('--text-color').trim(),
+          'border-radius': rootStyle.getPropertyValue('--border-radius').trim(),
+          'nonary-color': rootStyle.getPropertyValue('--nonary-color').trim(),
+          'octonary-color': rootStyle.getPropertyValue('--octonary-color').trim(),
+          // Always detect font-family
+          'font-family': bodyStyle.fontFamily
         };
-        // Filter out any empty values so we don't pass them as params
-        Object.keys(colors).forEach(key => {
-          if (!colors[key]) {
-            delete colors[key];
+
+        // Priority 2: Infer from computed styles if variables are missing
+        if (!detectedTheme['background']) detectedTheme['background'] = bodyStyle.backgroundColor;
+        if (!detectedTheme['text-color']) detectedTheme['text-color'] = bodyStyle.color;
+
+        // Infer accent colors from a prominent button or link
+        if (!detectedTheme['primary-color']) {
+          const primaryButton = document.querySelector('button[class*="primary"], button[class*="btn-primary"], button:not([style*="background: transparent"])');
+          const link = document.querySelector('a');
+          if (primaryButton) {
+            const btnStyle = getComputedStyle(primaryButton);
+            detectedTheme['primary-color'] = btnStyle.backgroundColor;
+            detectedTheme['on-primary'] = btnStyle.color;
+          } else if (link) {
+            detectedTheme['primary-color'] = getComputedStyle(link).color;
+          }
+        }
+        
+        // Infer border-radius from a button
+        if (!detectedTheme['border-radius']) {
+            const sampleButton = document.querySelector('button, input[type="submit"]');
+            if (sampleButton) {
+                detectedTheme['border-radius'] = getComputedStyle(sampleButton).borderRadius;
+            }
+        }
+
+        // Clean up theme object, removing empty or transparent values
+        Object.keys(detectedTheme).forEach(key => {
+          const value = detectedTheme[key];
+          if (!value || value === 'rgba(0, 0, 0, 0)') {
+            delete detectedTheme[key];
           }
         });
-        return colors;
+
+        return detectedTheme;
       }
 
-      const themeColors = getThemeColors();
+      const hostTheme = detectHostTheme();
       
       // Step 3: Build the iframe URL with theme and color parameters
       const queryParams = new URLSearchParams({ theme });
-      for (const [key, value] of Object.entries(themeColors)) {
+      for (const [key, value] of Object.entries(hostTheme)) {
         queryParams.set(key, value);
       }
-      // Use the explicit workerOrigin to ensure the URL is always absolute
       const iframeSrc = \`\${workerOrigin}/widget-iframe?\${queryParams.toString()}\`;
       
-      // Use a default accent color for the button if not defined, fallback to dark/light theme
-      const accentColor = themeColors['primary-color'] || (theme === 'dark' ? '#BB86FC' : '#6200EE');
+      const accentColor = hostTheme['primary-color'] || (theme === 'dark' ? '#BB86FC' : '#6200EE');
       const buttonBg = theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)';
-      const windowBg = themeColors['octonary-color'] || (theme === 'dark' ? 'rgba(18,18,18,0.8)' : 'rgba(255,255,255,0.8)');
+      const windowBg = hostTheme['octonary-color'] || (theme === 'dark' ? 'rgba(18,18,18,0.8)' : 'rgba(255,255,255,0.8)');
       
       // Inject enhanced Material You button and window styles
       const style = document.createElement('style');

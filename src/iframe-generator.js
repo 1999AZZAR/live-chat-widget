@@ -30,7 +30,14 @@ export function generateWidgetHTML(url) {
     }
   };
 
-  // Step 3: Get colors from URL params, or use the defaults for the base theme
+  // Step 3: Get styling properties from URL params, using defaults as fallbacks
+  const styles = {
+    fontFamily: params.get('font-family') || "'Roboto', Arial, sans-serif",
+    borderRadius: params.get('border-radius') || '18px',
+    inputBorderRadius: params.get('border-radius') ? `calc(${params.get('border-radius')} + 6px)` : '24px'
+  };
+  
+  // Get colors from URL params, or use the defaults for the base theme
   const colors = {
     accentColor: params.get('primary-color') || colorDefaults[baseTheme].accentColor,
     accentColorDark: params.get('primary-dark') || colorDefaults[baseTheme].accentColorDark,
@@ -39,7 +46,7 @@ export function generateWidgetHTML(url) {
     aiMessageBg: params.get('nonary-color') || colorDefaults[baseTheme].aiMessageBg,
     chatContainerBg: params.get('octonary-color') || colorDefaults[baseTheme].chatContainerBg,
     aiMessageColor: colorDefaults[baseTheme].aiMessageColor,
-    textColor: colorDefaults[baseTheme].textColor
+    textColor: params.get('text-color') || colorDefaults[baseTheme].textColor
   };
   
   // Step 4: Derive final colors for the UI components
@@ -63,7 +70,7 @@ export function generateWidgetHTML(url) {
       align-items: center;
       background: ${colors.chatWindowBg};
       backdrop-filter: blur(20px);
-      font-family: 'Roboto', Arial, sans-serif;
+      font-family: ${styles.fontFamily};
     }
     .chat-container {
       width: 360px;
@@ -87,7 +94,7 @@ export function generateWidgetHTML(url) {
       margin-bottom: 16px;
       max-width: 80%;
       padding: 12px 16px;
-      border-radius: 18px;
+      border-radius: ${styles.borderRadius};
       line-height: 1.4;
       word-wrap: break-word;
     }
@@ -136,7 +143,7 @@ export function generateWidgetHTML(url) {
       flex: 1;
       padding: 12px 16px;
       border: 1px solid ${colors.aiMessageBg};
-      border-radius: 24px;
+      border-radius: ${styles.inputBorderRadius};
       font-size: 14px;
       outline: none;
       transition: border-color 0.2s;
@@ -200,7 +207,7 @@ export function generateWidgetHTML(url) {
       display: none;
       padding: 12px 16px;
       background-color: ${colors.aiMessageBg};
-      border-radius: 18px;
+      border-radius: ${styles.borderRadius};
       margin-bottom: 16px;
       max-width: 80%;
       align-self: flex-start;
