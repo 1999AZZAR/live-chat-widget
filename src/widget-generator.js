@@ -114,24 +114,39 @@ export function generateWidgetJS(origin) {
           'font-family': bodyStyle.fontFamily
         };
 
-        // Infer theme mode from the background color's luminance, overriding OS settings
-        let bgColor = detectedTheme['background'] || bodyStyle.backgroundColor;
-        const bodyBgIsTransparent = !bgColor || bgColor === 'transparent' || bgColor === 'rgba(0, 0, 0, 0)';
-
-        // If body background is transparent, check the html element's background instead.
-        if (bodyBgIsTransparent) {
-            bgColor = rootStyle.backgroundColor;
+        // Infer theme mode from the most relevant background color's luminance
+        function findMainBackgroundColor() {
+            const selectors = ['main', 'div[role="main"]', '#__next > div', '#root > div', '.content', '#content', 'article'];
+            for (const selector of selectors) {
+                const elem = document.querySelector(selector);
+                if (elem) {
+                    const style = getComputedStyle(elem);
+                    const bgColor = style.backgroundColor;
+                    if (bgColor && bgColor !== 'transparent' && bgColor !== 'rgba(0, 0, 0, 0)') {
+                        return bgColor;
+                    }
+                }
+            }
+            // Fallback chain
+            const bodyBgColor = bodyStyle.backgroundColor;
+            if (bodyBgColor && bodyBgColor !== 'transparent' && bodyBgColor !== 'rgba(0, 0, 0, 0)') {
+                return bodyBgColor;
+            }
+            return rootStyle.backgroundColor; // Final fallback to <html>
         }
         
-        if (bgColor && bgColor !== 'transparent' && bgColor !== 'rgba(0, 0, 0, 0)') {
-            if (!detectedTheme['background']) detectedTheme['background'] = bgColor;
-            const luminance = getLuminance(bgColor);
-            // This is the key: a theme mode based on the site's content, not the OS.
+        const mainBgColor = findMainBackgroundColor();
+        if (mainBgColor) {
+            if (!detectedTheme['background']) detectedTheme['background'] = mainBgColor;
+            const luminance = getLuminance(mainBgColor);
             detectedTheme['detected-theme-mode'] = luminance > 0.5 ? 'light' : 'dark';
         }
 
         // Priority 2: Infer other styles if variables are missing
-        if (!detectedTheme['text-color']) detectedTheme['text-color'] = bodyStyle.color;
+        if (!detectedTheme['text-color']) {
+            const mainContentElem = document.querySelector('main') || document.body;
+            detectedTheme['text-color'] = getComputedStyle(mainContentElem).color;
+        }
 
         // Infer accent colors from a prominent button or link, with Tailwind CSS support
         if (!detectedTheme['primary-color']) {
