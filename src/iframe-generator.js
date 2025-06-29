@@ -415,7 +415,7 @@ export function generateWidgetHTML(url) {
       
       // Fetch welcome message from API with an absolute URL
       try {
-        const resp = await fetch(`${workerOrigin}/api/welcome-message?lang=${encodeURIComponent(lang)}`);
+        const resp = await fetch(workerOrigin + '/api/welcome-message?lang=' + encodeURIComponent(lang));
         if (resp.ok) {
           const data = await resp.json();
           welcomeMsg = data.welcome || '';
@@ -506,7 +506,7 @@ export function generateWidgetHTML(url) {
       
       try {
         // Send request to AI using an absolute URL
-        const response = await fetch(`${workerOrigin}/api/chat`, {
+        const response = await fetch(workerOrigin + '/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
