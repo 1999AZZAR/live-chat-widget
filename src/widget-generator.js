@@ -92,16 +92,38 @@ export function generateWidgetJS(origin) {
         if (!detectedTheme['background']) detectedTheme['background'] = bodyStyle.backgroundColor;
         if (!detectedTheme['text-color']) detectedTheme['text-color'] = bodyStyle.color;
 
-        // Infer accent colors from a prominent button or link
+        // Infer accent colors from a prominent button or link, with Tailwind CSS support
         if (!detectedTheme['primary-color']) {
-          const primaryButton = document.querySelector('button[class*="primary"], button[class*="btn-primary"], button:not([style*="background: transparent"])');
-          const link = document.querySelector('a');
+          let primaryButton = null;
+          const allButtons = Array.from(document.querySelectorAll('button'));
+
+          // Tailwind-specific detection: find a button with a non-neutral `bg-` class
+          const tailwindButtons = allButtons.filter(btn => {
+            const classList = Array.from(btn.classList);
+            const hasBgClass = classList.some(c => c.startsWith('bg-') && !c.includes('transparent'));
+            const isNeutral = classList.some(c => c.match(/bg-(gray|zinc|neutral|stone|slate|white|black)/));
+            return hasBgClass && !isNeutral;
+          });
+
+          if (tailwindButtons.length > 0) {
+            primaryButton = tailwindButtons[0]; // Use the first likely candidate
+          }
+
+          // Fallback to generic button detection if no Tailwind button is found
+          if (!primaryButton) {
+            primaryButton = document.querySelector('button[class*="primary"], button[class*="btn-primary"], button:not([style*="background: transparent"])');
+          }
+
           if (primaryButton) {
             const btnStyle = getComputedStyle(primaryButton);
             detectedTheme['primary-color'] = btnStyle.backgroundColor;
             detectedTheme['on-primary'] = btnStyle.color;
-          } else if (link) {
-            detectedTheme['primary-color'] = getComputedStyle(link).color;
+          } else {
+            // Last resort: check a link's color
+            const link = document.querySelector('a');
+            if (link) {
+                detectedTheme['primary-color'] = getComputedStyle(link).color;
+            }
           }
         }
         
