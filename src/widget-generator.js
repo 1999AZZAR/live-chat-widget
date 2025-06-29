@@ -97,7 +97,7 @@ export function generateWidgetJS(origin) {
           let primaryButton = null;
           const allButtons = Array.from(document.querySelectorAll('button'));
 
-          // Tailwind-specific detection: find a button with a non-neutral `bg-` class
+          // Tailwind-specific detection: find a button with a non-neutral 'bg-' class
           const tailwindButtons = allButtons.filter(btn => {
             const classList = Array.from(btn.classList);
             const hasBgClass = classList.some(c => c.startsWith('bg-') && !c.includes('transparent'));
