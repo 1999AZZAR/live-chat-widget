@@ -115,27 +115,51 @@ export function generateWidgetJS(origin) {
         };
 
         // Infer theme mode from the most relevant background color's luminance
-        function findMainBackgroundColor() {
-            const selectors = ['main', 'div[role="main"]', '#__next > div', '#root > div', '.content', '#content', 'article'];
-            for (const selector of selectors) {
-                const elem = document.querySelector(selector);
-                if (elem) {
-                    const style = getComputedStyle(elem);
-                    const bgColor = style.backgroundColor;
-                    if (bgColor && bgColor !== 'transparent' && bgColor !== 'rgba(0, 0, 0, 0)') {
-                        return bgColor;
-                    }
-                }
-            }
-            // Fallback chain
-            const bodyBgColor = bodyStyle.backgroundColor;
-            if (bodyBgColor && bodyBgColor !== 'transparent' && bodyBgColor !== 'rgba(0, 0, 0, 0)') {
-                return bodyBgColor;
-            }
-            return rootStyle.backgroundColor; // Final fallback to <html>
+        function findBestTextContainer() {
+          const textMap = new Map();
+          // Look at common text-bearing elements
+          document.querySelectorAll('p, h1, h2, h3, li, span, a').forEach(el => {
+              // Only consider elements that are reasonably visible
+              if (el.parentElement && el.offsetParent !== null) {
+                  const parent = el.parentElement;
+                  const len = (el.textContent || '').trim().length;
+                  if (len > 20) { // Ignore small bits of text
+                      textMap.set(parent, (textMap.get(parent) || 0) + len);
+                  }
+              }
+          });
+          
+          if (textMap.size === 0) return document.body; // Fallback
+
+          // Find the parent with the most accumulated text length
+          let bestContainer = document.body;
+          let maxLen = 0;
+          for (const [container, len] of textMap.entries()) {
+              if (len > maxLen) {
+                  maxLen = len;
+                  bestContainer = container;
+              }
+          }
+          return bestContainer;
         }
-        
-        const mainBgColor = findMainBackgroundColor();
+
+        const mainTextContainer = findBestTextContainer();
+        let mainBgColor = null;
+        let currentElem = mainTextContainer;
+
+        // Traverse up the DOM from the best container to find the first element with a non-transparent background
+        while (currentElem && currentElem !== document.documentElement) {
+            const style = getComputedStyle(currentElem);
+            const bg = style.backgroundColor;
+            if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
+                mainBgColor = bg;
+                break; // Found it
+            }
+            currentElem = currentElem.parentElement;
+        }
+        // Final fallback to the body or html tag if we found nothing
+        mainBgColor = mainBgColor || getComputedStyle(document.body).backgroundColor || getComputedStyle(document.documentElement).backgroundColor;
+                
         if (mainBgColor) {
             if (!detectedTheme['background']) detectedTheme['background'] = mainBgColor;
             const luminance = getLuminance(mainBgColor);
@@ -144,8 +168,8 @@ export function generateWidgetJS(origin) {
 
         // Priority 2: Infer other styles if variables are missing
         if (!detectedTheme['text-color']) {
-            const mainContentElem = document.querySelector('main') || document.body;
-            detectedTheme['text-color'] = getComputedStyle(mainContentElem).color;
+            // Use the color from the container where we found the most text
+            detectedTheme['text-color'] = getComputedStyle(mainTextContainer).color;
         }
 
         // Infer accent colors from a prominent button or link, with Tailwind CSS support
@@ -190,7 +214,7 @@ export function generateWidgetJS(origin) {
                 detectedTheme['border-radius'] = getComputedStyle(sampleButton).borderRadius;
             }
         }
-        
+
         // Sanity check for border-radius to keep it within reasonable bounds
         if (detectedTheme['border-radius']) {
             const radius = parseFloat(detectedTheme['border-radius']);
