@@ -143,7 +143,7 @@ export function generateWidgetJS(origin) {
 
             points.forEach(p => {
               const [r, g, b] = context.getImageData(p.x, p.y, 1, 1).data;
-              const color = `rgb(${r}, ${g}, ${b})`;
+              const color = 'rgb(' + r + ', ' + g + ', ' + b + ')';
               colorCounts[color] = (colorCounts[color] || 0) + 1;
               if (colorCounts[color] > maxCount) {
                 maxCount = colorCounts[color];
