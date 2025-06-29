@@ -114,41 +114,53 @@ export function generateWidgetJS(origin) {
           'font-family': bodyStyle.fontFamily
         };
 
-        // Infer theme mode from the most relevant background color's luminance
-        function findMainBackgroundColor() {
-            // A prioritized list of selectors for what is most likely the main content area.
-            const selectors = ['main', 'article', 'div[role="main"]', '#content', '.content', '#__next > div', '#root > div'];
-            let mainElement = null;
+        // Final approach: Determine theme based on the dominant background color of the visible viewport.
+        // This is the most robust method as it reflects what the user actually sees.
+        function getDominantViewportColor() {
+          try {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d', { willReadFrequently: true });
+            const { innerWidth: width, innerHeight: height } = window;
+            canvas.width = width;
+            canvas.height = height;
 
-            for (const selector of selectors) {
-                const elem = document.querySelector(selector);
-                if (elem) {
-                    mainElement = elem;
-                    break; // Found a likely candidate, stop searching.
-                }
-            }
-
-            // If no semantic container is found, fall back to the body.
-            mainElement = mainElement || document.body;
-            let currentElem = mainElement;
-            let bgColor = null;
-
-            // Walk up the DOM from the main element to find the first non-transparent background.
-            while (currentElem && currentElem !== document.documentElement) {
-                const style = getComputedStyle(currentElem);
-                const bg = style.backgroundColor;
-                if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
-                    bgColor = bg;
-                    break; // Found it.
-                }
-                currentElem = currentElem.parentElement;
-            }
+            // Draw the visible part of the page onto the canvas
+            context.drawWindow(window, 0, 0, width, height, 'rgb(255,255,255)');
             
-            // Final fallback to the html element's background if everything else was transparent.
-            return bgColor || rootStyle.backgroundColor;
+            // Sample a few key points to determine dominant color
+            // (top-left, top-right, center, bottom-left, bottom-right)
+            const points = [
+              { x: 50, y: 50 },
+              { x: width - 50, y: 50 },
+              { x: width / 2, y: height / 2 },
+              { x: 50, y: height - 50 },
+              { x: width - 50, y: height - 50 }
+            ];
+
+            const colorCounts = {};
+            let maxCount = 0;
+            let dominantColor = 'rgb(255, 255, 255)'; // Default to white
+
+            points.forEach(p => {
+              const [r, g, b] = context.getImageData(p.x, p.y, 1, 1).data;
+              const color = `rgb(${r}, ${g}, ${b})`;
+              colorCounts[color] = (colorCounts[color] || 0) + 1;
+              if (colorCounts[color] > maxCount) {
+                maxCount = colorCounts[color];
+                dominantColor = color;
+              }
+            });
+            
+            return dominantColor;
+
+          } catch (e) {
+            console.error("Could not determine viewport color, falling back to body.", e);
+            // Fallback if drawWindow is not available or fails (e.g., security restrictions)
+            return bodyStyle.backgroundColor || rootStyle.backgroundColor;
+          }
         }
         
-        const mainBgColor = findMainBackgroundColor();
+        const mainBgColor = getDominantViewportColor();
         if (mainBgColor) {
             if (!detectedTheme['background']) detectedTheme['background'] = mainBgColor;
             const luminance = getLuminance(mainBgColor);
