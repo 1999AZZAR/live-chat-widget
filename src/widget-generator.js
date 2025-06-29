@@ -77,7 +77,7 @@ export function generateWidgetJS(origin) {
         // Helper to calculate the luminance of a color to determine if it's light or dark
         function getLuminance(color) {
           if (!color || typeof color !== 'string') return 0.5; // Default to neutral
-          const rgb = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          const rgb = color.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
           if (!rgb) return 0.5; // Can't parse, assume neutral
           const r = parseInt(rgb[1]) / 255;
           const g = parseInt(rgb[2]) / 255;
