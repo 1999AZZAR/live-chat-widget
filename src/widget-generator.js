@@ -2,6 +2,9 @@ export function generateWidgetJS(origin) {
     return `
   // Azzar AI Chat Widget
   (function() {
+    // This is the origin of the worker, passed in when the script is generated.
+    const workerOrigin = '${origin}';
+  
     // Helper to get explicit language setting (robust, always up-to-date)
     function detectAzzarLang() {
       // 1. window.AZZAR_CHAT_CONFIG.lang
@@ -94,7 +97,8 @@ export function generateWidgetJS(origin) {
       for (const [key, value] of Object.entries(themeColors)) {
         queryParams.set(key, value);
       }
-      const iframeSrc = \`\${origin}/widget-iframe?\${queryParams.toString()}\`;
+      // Use the explicit workerOrigin to ensure the URL is always absolute
+      const iframeSrc = \`\${workerOrigin}/widget-iframe?\${queryParams.toString()}\`;
       
       // Use a default accent color for the button if not defined, fallback to dark/light theme
       const accentColor = themeColors['primary-color'] || (theme === 'dark' ? '#BB86FC' : '#6200EE');
@@ -200,7 +204,7 @@ export function generateWidgetJS(origin) {
       const iframe = document.createElement('iframe');
       iframe.className = 'azzar-chat-iframe';
       iframe.src = iframeSrc;
-      iframe.title = 'Chat with Azzar';
+      iframe.title = 'Chat with FREA';
       
       chatWindow.appendChild(iframe);
       widget.appendChild(chatWindow);

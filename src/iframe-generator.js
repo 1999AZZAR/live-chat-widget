@@ -1,6 +1,7 @@
 export function generateWidgetHTML(url) {
   // Get URL parameters
   const params = url.searchParams;
+  const workerOrigin = url.origin; // The origin of the worker itself
   
   // Step 1: Determine the base theme (dark/light) as a fallback
   const baseTheme = params.get('theme') === 'dark' ? 'dark' : 'light';
@@ -52,7 +53,7 @@ export function generateWidgetHTML(url) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Azzar AI Chat</title>
+  <title>Chat with FREA</title>
   <style>
     body {
       margin: 0;
@@ -266,9 +267,7 @@ export function generateWidgetHTML(url) {
 <body>
   <div class="chat-container">
     <div class="messages" id="messages">
-      <div class="message ai-message">
-        Halo! saya Azzar. Freelance developer & educator dari Jogja. Ada yang bisa dibantu?
-      </div>
+      <!-- Welcome message will be loaded here -->
     </div>
     <div class="typing-indicator" id="typing-indicator">
       <span class="dot"></span>
@@ -293,6 +292,9 @@ export function generateWidgetHTML(url) {
   </div>
   
   <script>
+    // This is the origin of the worker, passed in from the server
+    const workerOrigin = '${workerOrigin}';
+
     // Chat functionality
     const messagesContainer = document.getElementById('messages');
     const inputField = document.getElementById('input-field');
@@ -408,11 +410,12 @@ export function generateWidgetHTML(url) {
     // Load conversation history from localStorage if available
     const loadConversationHistory = async (forceWelcome) => {
       const savedHistory = localStorage.getItem('azzarChatHistory');
-      let lang = window.azzarChatCurrentLang || detectAzzarLang() || 'en';
+      let lang = window.parent.azzarChatCurrentLang || 'en';
       let welcomeMsg = '';
-      // Fetch welcome message from API with lang param
+      
+      // Fetch welcome message from API with an absolute URL
       try {
-        const resp = await fetch('/api/welcome-message?lang=' + encodeURIComponent(lang));
+        const resp = await fetch(`${workerOrigin}/api/welcome-message?lang=${encodeURIComponent(lang)}`);
         if (resp.ok) {
           const data = await resp.json();
           welcomeMsg = data.welcome || '';
@@ -420,9 +423,11 @@ export function generateWidgetHTML(url) {
       } catch (e) {
         // ignore
       }
+
       if (!welcomeMsg) {
-        welcomeMsg = lang === 'id' ? 'Halo! saya Azzar. Freelance developer & educator dari Jogja. Ada yang bisa dibantu?' : 'Hi! I am Azzar, a freelance developer & educator from Jogja. How can I help you?';
+        welcomeMsg = lang === 'id' ? 'Halo! Saya FREA, asisten AI Anda. Ada yang bisa saya bantu?' : 'Hi! I am FREA, your AI assistant. How can I help you?';
       }
+
       if (savedHistory && !forceWelcome) {
         try {
           conversationHistory = JSON.parse(savedHistory);
@@ -500,8 +505,8 @@ export function generateWidgetHTML(url) {
       typingIndicator.classList.add('visible');
       
       try {
-        // Send request to AI
-        const response = await fetch('/api/chat', {
+        // Send request to AI using an absolute URL
+        const response = await fetch(`${workerOrigin}/api/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -547,33 +552,8 @@ export function generateWidgetHTML(url) {
     clearButton.addEventListener('click', () => {
       // Clear UI
       messagesContainer.innerHTML = '';
-      // Add back welcome message
-      (async () => {
-        // Detect language: try <html lang> first, then navigator.language
-        let lang = document.documentElement.lang || (navigator.language ? navigator.language.split('-')[0] : 'en');
-        if (!lang) lang = 'en';
-        let welcomeMsg = '';
-        try {
-          const resp = await fetch('/api/welcome-message?lang=' + encodeURIComponent(lang));
-          if (resp.ok) {
-            const data = await resp.json();
-            welcomeMsg = data.welcome || '';
-          }
-        } catch (e) {}
-        if (!welcomeMsg) {
-          welcomeMsg = lang === 'id' ? 'Halo! saya Azzar. Freelance developer & educator dari Jogja. Ada yang bisa dibantu?' : 'Hi! I am Azzar, a freelance developer & educator from Jogja. How can I help you?';
-        }
-        const welcomeDiv = document.createElement('div');
-        welcomeDiv.className = 'message ai-message';
-        welcomeDiv.textContent = welcomeMsg;
-        messagesContainer.appendChild(welcomeDiv);
-        // Reset history
-        conversationHistory = [{
-          role: 'assistant',
-          content: welcomeMsg
-        }];
-        saveConversationHistory();
-      })();
+      // Reload conversation history, which includes fetching a new welcome message
+      loadConversationHistory(true);
     });
     
     // Load conversation history on page load
