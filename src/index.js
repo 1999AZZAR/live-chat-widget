@@ -1,20 +1,360 @@
 // Environment setup & configuration
+import { generateWidgetJS } from './widget-generator.js';
+import { generateInstructionsHTML } from './demo-generator.js';
+import { generateWidgetHTML } from './iframe-generator.js';
+import { LRUCache, memoryCache } from './lru-handler.js';
+
+// Optional: Initialize a KV-based cache if available
+let kvCache = {
+  async get(key) { return null; },
+  async set(key, value) { return; },
+  async has(key) { return false; }
+};
+
+// Function to query Wikipedia
+async function queryWikipedia(query) {
+  // Generate a cache key specifically for Wikipedia results
+  const cacheKey = `wiki:${query.trim().toLowerCase()}`;
+  
+  // Check memory cache first
+  if (memoryCache.has(cacheKey)) {
+    console.log(`Wikipedia cache hit for: ${query}`);
+    return memoryCache.get(cacheKey);
+  }
+  
+  try {
+    console.log(`Querying Wikipedia for: ${query}`);
+    
+    // Encode the query for URL
+    const encodedQuery = encodeURIComponent(query);
+    
+    // First, search for relevant Wikipedia articles
+    const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodedQuery}&format=json&origin=*`;
+    const searchResponse = await fetch(searchUrl);
+    const searchData = await searchResponse.json();
+    
+    // If no results, return empty
+    if (!searchData.query || !searchData.query.search || searchData.query.search.length === 0) {
+      const result = { success: false, message: "No Wikipedia articles found for this query." };
+      memoryCache.set(cacheKey, result);
+      return result;
+    }
+    
+    // Get the first result's page ID
+    const pageId = searchData.query.search[0].pageid;
+    
+    // Fetch the content of the article
+    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&pageids=${pageId}&format=json&origin=*`;
+    const contentResponse = await fetch(contentUrl);
+    const contentData = await contentResponse.json();
+    
+    // Extract the article content
+    const page = contentData.query.pages[pageId];
+    const title = page.title;
+    const extract = page.extract;
+    
+    // Create the result
+    const result = {
+      success: true,
+      title: title,
+      content: extract,
+      url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`
+    };
+    
+    // Cache the result
+    memoryCache.set(cacheKey, result);
+    
+    return result;
+  } catch (error) {
+    console.error('Error querying Wikipedia:', error);
+    return { success: false, message: "Failed to query Wikipedia: " + error.message };
+  }
+}
+
+// Function to determine if a query might benefit from Wikipedia
+function shouldUseWikipedia(message) {
+  // Check for explicit requests for information
+  const informationPatterns = [
+    /what is/i, /who is/i, /tell me about/i, /information on/i,
+    /when was/i, /where is/i, /how does/i, /definition of/i,
+    /explain/i, /describe/i, /history of/i, /facts about/i
+  ];
+
+  // Keywords that suggest the AI should answer from its persona, not Wikipedia
+  const personaKeywords = [
+    /you/i, /your/i, /creator/i, /azzar/i, /frea/i, // FREA is the bot's name
+    /who made you/i, /who created you/i
+  ];
+
+  if (personaKeywords.some(pattern => pattern.test(message))) {
+    console.log('Query pertains to persona, skipping Wikipedia.');
+    return false; // AI should answer this from persona
+  }
+  
+  return informationPatterns.some(pattern => pattern.test(message));
+}
+
+// Function to count tokens approximately (improved version)
+function approximateTokenCount(text) {
+  if (!text) return 0;
+  
+  // More accurate approximation:
+  // - Average English word is ~4.7 characters
+  // - Words are typically 1-2 tokens
+  // - Special characters and numbers count as separate tokens
+  
+  // Count words (approximate tokens from words)
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  
+  // Count special tokens (numbers, symbols, etc.)
+  const specialChars = (text.match(/[^a-zA-Z\s]/g) || []).length;
+  
+  // Final approximation
+  return Math.ceil((wordCount * 1.3) + (specialChars * 0.5));
+}
+
+// Function to clean up excessive blank lines in text
+function cleanupFormatting(text) {
+  if (!text) return text;
+  
+  // First, identify and temporarily protect URLs from formatting changes
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const urls = [];
+  let protectedText = text.replace(urlRegex, function(match) {
+    urls.push(match);
+    return `__URL_PLACEHOLDER_${urls.length - 1}__`;
+  });
+  
+  // Replace sequences of more than 2 newlines with just 2 newlines
+  let cleanedText = protectedText.replace(/\n{3,}/g, '\n\n');
+  
+  // Handle cases where there might be multiple line breaks with spaces between them
+  cleanedText = cleanedText.replace(/(\s*\n\s*){3,}/g, '\n\n');
+  
+  // Ensure lists are properly formatted (no extra spaces before list items)
+  cleanedText = cleanedText.replace(/\n\s+(\d+\.\s|\*\s|\-\s)/g, '\n$1');
+  
+  // Ensure paragraphs end with proper punctuation when possible
+  cleanedText = cleanedText.replace(/([a-zA-Z])(\s*\n\s*\n\s*[A-Z])/g, '$1.$2');
+  
+  // Fix spacing after punctuation, but not for placeholders
+  cleanedText = cleanedText.replace(/([.,!?:;])([a-zA-Z])/g, '$1 $2');
+  
+  // Now restore the protected URLs
+  for (let i = 0; i < urls.length; i++) {
+    cleanedText = cleanedText.replace(`__URL_PLACEHOLDER_${i}__`, urls[i]);
+  }
+  
+  return cleanedText;
+}
+
+// Enhanced deduplication function - this is the main improvement to fix duplicate responses
+function deduplicateResponse(text) {
+  if (!text) return text;
+  
+  // Step 1: Check for patterns related to creator/bot introduction that commonly repeat
+  const introPatterns = [
+    /^(My creator is azzar|azzar Budiyanto is a freelance)/i,
+    /^(FREA is an AI assistant|I am FREA, an AI assistant)/i,
+    /^(As an AI assistant|As FREA, an AI assistant)/i
+  ];
+  
+  for (const pattern of introPatterns) {
+    const parts = text.split(pattern);
+    // If we have multiple matches of the same intro pattern
+    if (parts.length >= 3) {
+      // First part is anything before first match, often empty
+      // Second part is the matched content in the first match and content after it
+      const firstSection = parts[0] + (pattern.source.replace(/^\^|\(|\).*$/g, '') + parts[1]);
+      
+      // Only keep the first section if it's substantial
+      if (firstSection.trim().length > 50) {
+        console.log('Deduplication: Found repeated introduction pattern, keeping first instance.');
+        return firstSection.trim();
+      }
+    }
+  }
+  
+  // Step 2: More general sentence-level deduplication
+  // This helps with cases where sentences repeat in different sections
+  const sentences = text.match(/[^.!?]+[.!?]+\s*/g);
+  if (sentences && sentences.length > 3) {
+    const uniqueSentences = [];
+    const seenSentences = new Set();
+    
+    for (const sentence of sentences) {
+      // Normalize sentence - strip whitespace, lowercase
+      const normalized = sentence.trim().toLowerCase();
+      // Skip very short sentences or common phrases
+      if (normalized.length < 10) {
+        uniqueSentences.push(sentence);
+        continue;
+      }
+      
+      // Check if we've seen this sentence before
+      if (!seenSentences.has(normalized)) {
+        uniqueSentences.push(sentence);
+        seenSentences.add(normalized);
+      }
+    }
+    
+    // If we removed any duplicates
+    if (uniqueSentences.length < sentences.length) {
+      console.log(`Deduplication: Removed ${sentences.length - uniqueSentences.length} duplicate sentences`);
+      return uniqueSentences.join('');
+    }
+  }
+  
+  // Step 3: Paragraph-level deduplication (original implementation)
+  const paragraphs = text.split(/\n\n+/); // Split by one or more double newlines
+  if (paragraphs.length > 1) {
+    const uniqueParagraphs = [];
+    if (paragraphs[0]) uniqueParagraphs.push(paragraphs[0]);
+    for (let i = 1; i < paragraphs.length; i++) {
+      if (paragraphs[i] && paragraphs[i].trim() !== '' && 
+          (!paragraphs[i-1] || paragraphs[i].trim() !== paragraphs[i-1].trim())) {
+        uniqueParagraphs.push(paragraphs[i]);
+      }
+    }
+    return uniqueParagraphs.join('\n\n');
+  }
+  
+  return text;
+}
+
+// Function to initialize KV cache if available
+async function initializeKVCache(env) {
+  if (env && env.KV) {
+    console.log('Initializing KV cache');
+    
+    // Create a more robust KV wrapper with caching functionality
+    kvCache = {
+      async get(key) {
+        try {
+          const value = await env.KV.get(key);
+          if (value) {
+            return JSON.parse(value);
+          }
+          return null;
+        } catch (error) {
+          console.error('Error getting from KV cache:', error);
+          return null;
+        }
+      },
+      
+      async set(key, value, ttl = 86400) { // Default TTL: 1 day
+        try {
+          await env.KV.put(key, JSON.stringify(value), { expirationTtl: ttl });
+        } catch (error) {
+          console.error('Error setting KV cache:', error);
+        }
+      },
+      
+      async has(key) {
+        try {
+          const value = await env.KV.get(key);
+          return value != null;
+        } catch (error) {
+          console.error('Error checking KV cache:', error);
+          return false;
+        }
+      }
+    };
+    
+    return true;
+  }
+  
+  console.log('KV binding not available, using memory cache only');
+  return false;
+}
 
 // Function to send messages to the AI
 async function sendToAI(messages, env) {
   try {
-    console.log('Sending request to AI with messages:', JSON.stringify(messages, null, 2));
+    console.log('Processing request with messages:', JSON.stringify(messages, null, 2));
     
     if (!env.AI) {
       console.error('AI binding is not available. Check your wrangler.toml configuration.');
       return "Sorry, the AI service is not properly configured.";
     }
     
-    const aiResponse = await env.AI.run('@cf/meta/llama-3.1-70b-instruct', {
-      messages: messages
+    // Generate a cache key for this conversation
+    const cacheKey = LRUCache.generateKey(messages);
+    
+    // Check memory cache first (fastest)
+    if (memoryCache.has(cacheKey)) {
+      console.log('Memory cache hit!');
+      return memoryCache.get(cacheKey);
+    }
+    
+    // Then check KV cache if available (slower but persistent)
+    let kvCacheResult = null;
+    if (env.KV) {
+      kvCacheResult = await kvCache.get(cacheKey);
+      if (kvCacheResult) {
+        console.log('KV cache hit!');
+        // Update memory cache for faster access next time
+        memoryCache.set(cacheKey, kvCacheResult);
+        return kvCacheResult;
+      }
+    }
+    
+    // Check if the last user message might benefit from Wikipedia info
+    const lastUserMessage = messages.find(m => m.role === 'user');
+    let wikipediaInfo = null;
+    
+    if (lastUserMessage && shouldUseWikipedia(lastUserMessage.content)) {
+      wikipediaInfo = await queryWikipedia(lastUserMessage.content);
+      console.log('Wikipedia query results:', JSON.stringify(wikipediaInfo, null, 2));
+      
+      // If Wikipedia returned useful information, add it to the system message
+      if (wikipediaInfo && wikipediaInfo.success) {
+        // Find the system message
+        const systemMessageIndex = messages.findIndex(m => m.role === 'system');
+        
+        if (systemMessageIndex !== -1) {
+          // Add Wikipedia info to the system message
+          messages[systemMessageIndex].content += `\n\nRelevant information from Wikipedia about "${wikipediaInfo.title}":\n${wikipediaInfo.content}\nSource: ${wikipediaInfo.url}`;
+        } else {
+          // If no system message exists, add one with the Wikipedia info
+          messages.unshift({
+            role: 'system',
+            content: `Relevant information from Wikipedia about "${wikipediaInfo.title}":\n${wikipediaInfo.content}\nSource: ${wikipediaInfo.url}`
+          });
+        }
+      }
+    }
+    
+    // Calculate approximate token usage for input using our more accurate function
+    let inputTokens = 0;
+    messages.forEach(msg => {
+      inputTokens += approximateTokenCount(msg.content);
     });
     
-    console.log('Raw AI response:', JSON.stringify(aiResponse, null, 2));
+    // Set maximum output tokens - leaving space based on input tokens
+    // Model context limit is about 8k-16k tokens depending on the specific model
+    // Let's target staying within 6.5k total tokens for safety
+    const MAX_CONTEXT_TOKENS = 6500;
+    const MAX_OUTPUT_TOKENS = Math.max(250, MAX_CONTEXT_TOKENS - inputTokens - 150); 
+    
+    console.log(`Approximate input tokens: ${inputTokens}, setting max output tokens: ${MAX_OUTPUT_TOKENS}`);
+    
+    // Add instruction to prevent repetition
+    const systemMessageIndex = messages.findIndex(m => m.role === 'system');
+    if (systemMessageIndex !== -1) {
+      messages[systemMessageIndex].content += '\n\nIMPORTANT: Please provide a concise, non-repetitive response. Do not duplicate information within your answer.';
+    }
+    
+    // Log cache miss and call the AI API
+    console.log('Cache miss - calling AI service');
+    const aiResponse = await env.AI.run('@cf/meta/llama-3.1-70b-instruct', {
+      messages: messages,
+      max_tokens: MAX_OUTPUT_TOKENS,
+      temperature: 0.7, // Add some temperature for more natural responses
+      top_p: 0.95      // Adjust top_p for more focused responses
+    });
+    
+    console.log('Raw AI response received');
     
     // Try to extract the response text
     let responseText;
@@ -50,7 +390,38 @@ async function sendToAI(messages, env) {
       console.error('Unexpected response type:', typeof aiResponse);
     }
     
-    console.log('Final extracted response text:', responseText);
+    // Clean up the response text formatting
+    responseText = cleanupFormatting(responseText);
+    
+    console.log('AI Response (Pre-Deduplication):', responseText.substring(0, 100) + '...'); // Log start of response
+
+    // Apply our enhanced deduplication function
+    responseText = deduplicateResponse(responseText);
+    
+    console.log('Final extracted response text (Post-Deduplication):', responseText.substring(0, 100) + '...');
+    
+    // If we used Wikipedia, add a citation
+    if (wikipediaInfo && wikipediaInfo.success && wikipediaInfo.url && wikipediaInfo.title) {
+      // Check if the response doesn't already contain the citation URL
+      if (!responseText.includes(wikipediaInfo.url)) {
+        const cleanUrl = wikipediaInfo.url.replace(/\s+/g, '');
+        // Also check if the title seems reasonable (not a placeholder or error)
+        if (wikipediaInfo.title.toLowerCase() !== "no wikipedia articles found for this query." && 
+            wikipediaInfo.title.length > 0 && 
+            !responseText.toLowerCase().includes(wikipediaInfo.title.toLowerCase())) { // Avoid re-adding if title already mentioned
+        responseText += `\n\nSource: [Wikipedia - ${wikipediaInfo.title}](${cleanUrl})`;
+        }
+      }
+    }
+    
+    // Store the response in the cache
+    memoryCache.set(cacheKey, responseText);
+    
+    // Also store in KV cache if available
+    if (env.KV) {
+      await kvCache.set(cacheKey, responseText);
+    }
+    
     return responseText;
   } catch (error) {
     console.error('Error in sendToAI:', error);
@@ -68,40 +439,95 @@ async function sendToAI(messages, env) {
 // Function to handle request
 export default {
   async fetch(request, env) {
+    // Initialize KV cache if available
+    if (env && env.KV) {
+      await initializeKVCache(env);
+    }
+
     const url = new URL(request.url);
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
-    
-    // Handle CORS preflight requests
+
+    // Handle CORS preflight requests first (quick return)
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
         headers: corsHeaders
       });
     }
+
+    // Rate Limiting Logic - Process asynchronously to avoid blocking the response
+    const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown_ip';
+    let rateLimitExceeded = false;
+    
+    // Start rate limiting check in background
+    const rateLimitPromise = (async () => {
+      if (clientIP !== 'unknown_ip' && env.RATE_LIMITER_KV) {
+        try {
+          const now = Date.now();
+          const currentMinute = Math.floor(now / 60000);
+          const key = `rate_limit:${clientIP}:${currentMinute}`;
+          const currentCount = await env.RATE_LIMITER_KV.get(key);
+          const count = currentCount ? parseInt(currentCount) : 0;
+          
+          if (count >= 100) {
+            rateLimitExceeded = true;
+            console.log(`Rate limit exceeded for IP: ${clientIP}. Count: ${count}`);
+            return true;
+          }
+          
+          // Increment counter in the background (don't await)
+          env.RATE_LIMITER_KV.put(key, (count + 1).toString(), { expirationTtl: 60 })
+            .catch(e => console.error('Rate limiter increment error:', e));
+            
+          return false;
+        } catch (e) {
+          console.error('Rate limiter KV error:', e);
+          return false;
+        }
+      }
+      return false;
+    })();
     
     try {
-      // Serve the widget JS if requested
+      // Quick path for static assets with caching headers
       if (url.pathname === '/widget.js') {
         return new Response(generateWidgetJS(url.origin), {
           headers: { 
             'Content-Type': 'application/javascript',
+            'Cache-Control': 'max-age=3600', // Cache for 1 hour
             ...corsHeaders
           }
         });
       }
       
-      // Serve the iframe content if requested
       if (url.pathname === '/widget-iframe') {
         return new Response(generateWidgetHTML(url), {
           headers: { 
             'Content-Type': 'text/html',
+            'Cache-Control': 'max-age=3600', // Cache for 1 hour
             ...corsHeaders
           }
         });
+      }
+      
+      // For API endpoints, check rate limit before proceeding
+      if (url.pathname.startsWith('/api/')) {
+        // Wait for rate limit check to complete
+        const isRateLimited = await rateLimitPromise;
+        if (isRateLimited) {
+          return new Response(JSON.stringify({ error: 'Too Many Requests' }), { 
+            status: 429,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+              'Retry-After': '60'
+            }
+          });
+        }
       }
       
       // Handle chat API requests
@@ -120,11 +546,11 @@ export default {
           });
         }
         
-        // Get system prompt
-        const systemPrompt = await getSystemPrompt(request.url, env);
-        
-        // Get crawl links
-        const crawlLinks = await getCrawlLinks(request.url, env);
+        // Load system prompt and crawl links in parallel for better performance
+        const [systemPrompt, crawlLinks] = await Promise.all([
+          getSystemPrompt(request.url, env),
+          getCrawlLinks(request.url, env)
+        ]);
         
         // Enhanced system prompt with crawl links if available
         let enhancedPrompt = systemPrompt;
@@ -156,16 +582,117 @@ export default {
         });
       }
       
+      // Handle welcome message API
+      if (url.pathname === '/api/welcome-message' && request.method === 'GET') {
+        // Get requested language from query param, fallback to 'en'
+        const langCode = url.searchParams.get('lang') || 'en';
+        
+        // Check cache first for welcome messages (they rarely change)
+        const welcomeCacheKey = `welcome:${langCode}`;
+        if (memoryCache.has(welcomeCacheKey)) {
+          return new Response(JSON.stringify({ 
+            welcome: memoryCache.get(welcomeCacheKey) 
+          }), {
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'max-age=86400', // Cache for a day
+              ...corsHeaders
+            }
+          });
+        }
+        
+        // Load systemInstruction.txt to get the base persona
+        const baseSystemPrompt = await getSystemPrompt(request.url, env);
+        
+        // Map language codes to full names
+        const langMap = {
+          en: 'English', id: 'Bahasa Indonesia', ms: 'Bahasa Melayu',
+          jv: 'Javanese', su: 'Sundanese', fr: 'French',
+          de: 'German', es: 'Spanish', it: 'Italian',
+          pt: 'Portuguese', ru: 'Russian', zh: 'Chinese',
+          ja: 'Japanese', ko: 'Korean', ar: 'Arabic',
+          hi: 'Hindi', th: 'Thai', vi: 'Vietnamese',
+          // ... other languages
+        };
+        const langName = langMap[langCode] || langCode;
+        
+        // Compose prompt for AI
+        const aiPromptForWelcome = `You are FREA, an AI assistant. Generate a short, friendly welcome message for a chat widget, introducing yourself as FREA. The message should be in ${langName}. Only output the message, no explanations or extra text. Use the persona defined in the system instructions.`;
+        
+        let welcome = '';
+        try {
+          if (env.AI) {
+            const aiResp = await env.AI.run('@cf/meta/llama-3.1-70b-instruct', {
+              messages: [
+                // Provide the full system prompt which defines FREA
+                { role: 'system', content: baseSystemPrompt }, 
+                { role: 'user', content: aiPromptForWelcome }
+              ],
+              max_tokens: 100
+            });
+            
+            // Extract welcome message from response
+            if (typeof aiResp === 'string') {
+              welcome = aiResp.trim();
+            } else if (aiResp && typeof aiResp.response === 'string') {
+              welcome = aiResp.response.trim();
+            } else if (aiResp && typeof aiResp.text === 'string') {
+              welcome = aiResp.text.trim();
+            } else if (aiResp && typeof aiResp.content === 'string') {
+              welcome = aiResp.content.trim();
+            }
+          }
+        } catch (e) {
+          console.error('Error generating AI welcome message:', e);
+          // ignore, fallback below
+        }
+        
+        if (!welcome) {
+          // Fallback messages updated to use FREA
+          welcome = langCode === 'id' ? 
+            'Halo! Saya FREA, asisten AI Anda. Ada yang bisa saya bantu?' : 
+            'Hi! I am FREA, your AI assistant. How can I help you?';
+        }
+        
+        // Cache the welcome message
+        memoryCache.set(welcomeCacheKey, welcome);
+        
+        return new Response(JSON.stringify({ welcome }), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'max-age=86400', // Cache for a day
+            ...corsHeaders
+          }
+        });
+      }
+      
+      // Handle cache stats request (for debugging)
+      if (url.pathname === '/api/cache-stats' && request.method === 'GET') {
+        const stats = {
+          memoryCache: {
+            size: memoryCache.cache.size,
+            maxSize: memoryCache.maxSize,
+          }
+        };
+        return new Response(JSON.stringify(stats), {
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        });
+      }
+      
       // For root path, serve simple instructions on how to use the widget
       return new Response(generateInstructionsHTML(url.origin), {
         headers: { 
           'Content-Type': 'text/html',
+          'Cache-Control': 'max-age=3600', // Cache for an hour
           ...corsHeaders
         }
       });
     } catch (error) {
       console.error('Error:', error);
-      return new Response(JSON.stringify({ error: 'An error occurred' }), {
+      return new Response(JSON.stringify({ error: 'An error occurred', message: error.message }), {
         status: 500,
         headers: { 
           'Content-Type': 'application/json',
@@ -178,109 +705,110 @@ export default {
 
 // Generic function to fetch text files with multiple fallback options
 async function fetchTextFile(fileName, baseUrl, env, defaultContent = '') {
-  console.log(`Attempting to fetch ${fileName} from baseUrl: ${baseUrl}`);
+  // Create a cache key for the file
+  const cacheKey = `file:${fileName}:${baseUrl}`;
   
+  // Check memory cache first for the fastest response
+  if (memoryCache.has(cacheKey)) {
+    console.log(`Found ${fileName} in memory cache`);
+    return memoryCache.get(cacheKey);
+  }
+  
+  let content = null;
+  
+  // Method 1: For systemInstruction.txt, check SYSTEM_PROMPT KV first (most likely location)
+  if (fileName === 'systemInstruction.txt' && env?.SYSTEM_PROMPT) {
+    try {
+      content = await env.SYSTEM_PROMPT.get('systemInstruction.txt');
+      if (content) {
+        console.log(`Loaded ${fileName} from SYSTEM_PROMPT KV`);
+        memoryCache.set(cacheKey, content);
+        return content;
+      }
+    } catch (e) {
+      console.log(`Error accessing ${fileName} from KV:`, e);
+    }
+  }
+  
+  // Method 2: Try direct fetch from same origin (most efficient network path)
   try {
-    // Method 1: Direct fetch from same origin
-    try {
-      const directUrl = `${baseUrl}/${fileName}`;
-      console.log(`Trying direct fetch from: ${directUrl}`);
-      const response = await fetch(directUrl);
-      console.log(`Direct fetch response status: ${response.status}`);
-      
-      if (response.ok) {
-        const content = await response.text();
-        console.log(`Successfully loaded ${fileName} via direct fetch (${content.length} chars)`);
+    const directUrl = `${baseUrl}/${fileName}`;
+    const response = await fetch(directUrl, { 
+      headers: { 'Accept': 'text/plain' },
+      cf: { cacheTtl: 3600 } // Use Cloudflare's cache when possible
+    });
+    
+    if (response.ok) {
+      content = await response.text();
+      if (content) {
+        console.log(`Loaded ${fileName} via direct fetch`);
+        memoryCache.set(cacheKey, content);
         return content;
-      } else {
-        console.log(`Direct fetch failed for ${fileName}: ${response.status}`);
       }
-    } catch (e) {
-      console.log(`Error in direct fetch for ${fileName}:`, e);
     }
-    
-    // Method 2: Using R2/ASSETS binding if available
-    if (env && env.ASSETS) {
-      try {
-        console.log(`Trying to fetch ${fileName} from ASSETS binding`);
-        const asset = await env.ASSETS.get(fileName);
-        if (asset) {
-          const content = await asset.text();
-          console.log(`Successfully loaded ${fileName} from ASSETS (${content.length} chars)`);
-          return content;
-        } else {
-          console.log(`File ${fileName} not found in ASSETS`);
-        }
-      } catch (e) {
-        console.log(`Error accessing ${fileName} from ASSETS:`, e);
-      }
-    } else {
-      console.log('ASSETS binding not available');
-    }
-    
-    // Method 3: Try from KV storage if available
-    if (env && env.KV) {
-      try {
-        console.log(`Trying to fetch ${fileName} from KV binding`);
-        const content = await env.KV.get(fileName);
+  } catch (e) {
+    // Silent fail, try next method
+  }
+  
+  // Method 3: Try using R2/ASSETS binding if available
+  if (env?.ASSETS) {
+    try {
+      const asset = await env.ASSETS.get(fileName);
+      if (asset) {
+        content = await asset.text();
         if (content) {
-          console.log(`Successfully loaded ${fileName} from KV (${content.length} chars)`);
+          console.log(`Loaded ${fileName} from ASSETS binding`);
+          memoryCache.set(cacheKey, content);
           return content;
-        } else {
-          console.log(`File ${fileName} not found in KV`);
         }
-      } catch (e) {
-        console.log(`Error accessing ${fileName} from KV:`, e);
-      }
-    } else {
-      console.log('KV binding not available');
-    }
-    
-    // Method 4: Try absolute URL with appropriate headers
-    try {
-      // Try a fetch with proper headers for text retrieval
-      const absoluteUrl = new URL(fileName, baseUrl).toString();
-      console.log(`Trying CORS fetch from: ${absoluteUrl}`);
-      const response = await fetch(absoluteUrl, { 
-        headers: { 
-          'Accept': 'text/plain',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-      
-      console.log(`CORS fetch response status: ${response.status}`);
-      if (response.ok) {
-        const content = await response.text();
-        console.log(`Successfully loaded ${fileName} via CORS (${content.length} chars)`);
-        return content;
       }
     } catch (e) {
-      console.log(`Error in CORS fetch for ${fileName}:`, e);
+      // Silent fail, try next method
     }
+  }
+  
+  // Method 4: Try absolute URL with CORS headers as last resort
+  try {
+    const absoluteUrl = new URL(fileName, baseUrl).toString();
+    const response = await fetch(absoluteUrl, { 
+      headers: { 'Accept': 'text/plain', 'X-Requested-With': 'XMLHttpRequest' }
+    });
     
-    // Method 5: Try with embedded content as a fallback
-    if (fileName === 'systemInstruction.txt') {
-      console.log('Using embedded systemInstruction.txt content');
-      return `You are Azzar, a helpful AI assistant who specializes in web development, microcontrollers, and IoT technology. You're created by a freelance engineer from Yogyakarta, Indonesia. You're friendly, knowledgeable, and always willing to help with technical questions.`;
-    } else if (fileName === 'crawl.txt') {
-      console.log('Using embedded crawl.txt content');
-      return `https://github.com/1999AZZAR
+    if (response.ok) {
+      content = await response.text();
+      if (content) {
+        console.log(`Loaded ${fileName} via CORS fetch`);
+        memoryCache.set(cacheKey, content);
+        return content;
+      }
+    }
+  } catch (e) {
+    // Silent fail, use fallbacks
+  }
+  
+  // Method 5: Use embedded content as a fallback
+  if (fileName === 'systemInstruction.txt') {
+    console.log('Using embedded systemInstruction.txt content');
+    content = `You are FREA, an assistant based on Azzar persona, a helpful AI assistant who specializes in web development, microcontrollers, and IoT technology. You\'re created by a freelance engineer from Yogyakarta, Indonesia. You\'re friendly, knowledgeable, and always willing to help with technical questions.`;
+  } else if (fileName === 'crawl.txt') {
+    console.log('Using embedded crawl.txt content');
+    content = `https://github.com/1999AZZAR
 https://x.com/siapa_hayosiapa
 https://www.linkedin.com/in/azzar-budiyanto/
 https://medium.com/@azzar_budiyanto
 https://codepen.io/azzar
 https://www.instagram.com/azzar_budiyanto/
 https://azzar.netlify.app/porto`;
-    }
-    
-    // Fall back to default content
-    console.log(`All fetch methods failed for ${fileName}, using default`);
-    return defaultContent;
-    
-  } catch (error) {
-    console.error(`Unexpected error fetching ${fileName}:`, error);
-    return defaultContent;
+  } else {
+    content = defaultContent;
   }
+  
+  // Cache even the fallback content to avoid repeated lookups
+  if (content) {
+    memoryCache.set(cacheKey, content);
+  }
+  
+  return content || defaultContent;
 }
 
 // Function to get system prompt from systemInstruction.txt
@@ -289,7 +817,7 @@ async function getSystemPrompt(requestUrl, env) {
   const baseUrl = `${currentUrl.protocol}//${currentUrl.host}`;
   
   // Default system prompt if all methods fail
-  const defaultPrompt = "You are Azzar, a helpful AI assistant who specializes in web development, microcontrollers, and IoT technology. You're created by a freelance engineer from Yogyakarta, Indonesia. You're friendly, knowledgeable, and always willing to help with technical questions.";
+  const defaultPrompt = "You are FREA, an assistant based on Azzar persona, a helpful AI assistant who specializes in web development, microcontrollers, and IoT technology. You\'re created by a freelance engineer from Yogyakarta, Indonesia. You\'re friendly, knowledgeable, and always willing to help with technical questions.";
   
   return await fetchTextFile('systemInstruction.txt', baseUrl, env, defaultPrompt);
 }
@@ -312,742 +840,4 @@ async function getCrawlLinks(requestUrl, env) {
   
   // Default is an empty array if no links were found
   return [];
-}
-
-// Function to generate instructions HTML for the root path
-function generateInstructionsHTML(baseUrl) {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Azzar AI Chat Widget</title>
-  <style>
-    body {
-      font-family: 'Roboto', Arial, sans-serif;
-      line-height: 1.6;
-      margin: 0;
-      padding: 20px;
-      color: #333;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    h1 {
-      color: #6200ee;
-    }
-    code {
-      background: #f5f5f5;
-      padding: 2px 5px;
-      border-radius: 4px;
-      font-family: monospace;
-    }
-    pre {
-      background: #f5f5f5;
-      padding: 15px;
-      border-radius: 4px;
-      overflow-x: auto;
-    }
-    .container {
-      margin: 40px 0;
-    }
-  </style>
-</head>
-<body>
-  <h1>Azzar AI Chat Widget</h1>
-  <p>This service provides an embeddable chat widget for your website.</p>
-  
-  <div class="container">
-    <h2>How to Install</h2>
-    <p>Add the following script to your website:</p>
-    <pre><code>&lt;script src="${baseUrl}/widget.js"&gt;&lt;/script&gt;</code></pre>
-  </div>
-  
-  <div class="container">
-    <h2>Features</h2>
-    <ul>
-      <li>Automatically adapts to your website's color scheme</li>
-      <li>Responsive design that works on all devices</li>
-      <li>Persists conversation history in local storage</li>
-      <li>Simple integration with just one line of code</li>
-    </ul>
-  </div>
-  
-  <div class="container">
-    <h2>API Endpoint</h2>
-    <p>For custom integrations, you can use the API endpoint directly:</p>
-    <code>POST ${baseUrl}/api/chat</code>
-    <p>Request body:</p>
-    <pre><code>{
-  "message": "User message here",
-  "history": [
-    {"role": "user", "content": "Previous user message"},
-    {"role": "assistant", "content": "Previous AI response"}
-  ]
-}</code></pre>
-  </div>
-  
-  <footer>
-    <p>Created by <a href="https://azzar.netlify.app/porto" target="_blank">Azzar</a></p>
-  </footer>
-</body>
-</html>`;
-}
-
-// Function to generate the widget JS code
-function generateWidgetJS(origin) {
-  return `
-// Azzar AI Chat Widget
-(function() {
-  // Function to detect and apply the website's color scheme
-  const detectColorScheme = () => {
-    // Get computed styles from the document root or body
-    const rootStyles = getComputedStyle(document.documentElement);
-    
-    // Try to detect primary color from CSS variables
-    let primaryColor = rootStyles.getPropertyValue('--primary-color') || 
-                       rootStyles.getPropertyValue('--primary') || 
-                       rootStyles.getPropertyValue('--main-color') ||
-                       '#6200ee'; // Default fallback
-    
-    let primaryDarkColor = rootStyles.getPropertyValue('--primary-dark') || 
-                          rootStyles.getPropertyValue('--dark-primary') ||
-                          '#3700b3'; // Default fallback
-    
-    let textOnPrimaryColor = rootStyles.getPropertyValue('--on-primary') || 
-                            rootStyles.getPropertyValue('--text-on-primary') ||
-                            'white'; // Default fallback
-    
-    let backgroundColor = rootStyles.getPropertyValue('--background') || 
-                         rootStyles.getPropertyValue('--bg-color') ||
-                         '#f5f5f5'; // Default fallback
-    
-    // Clean up the detected colors (remove whitespace, etc.)
-    primaryColor = primaryColor.trim();
-    primaryDarkColor = primaryDarkColor.trim();
-    textOnPrimaryColor = textOnPrimaryColor.trim();
-    backgroundColor = backgroundColor.trim();
-    
-    // If colors don't start with '#' or 'rgb', add '#'
-    if (primaryColor && !primaryColor.startsWith('#') && !primaryColor.startsWith('rgb')) {
-      primaryColor = '#' + primaryColor;
-    }
-    
-    if (primaryDarkColor && !primaryDarkColor.startsWith('#') && !primaryDarkColor.startsWith('rgb')) {
-      primaryDarkColor = '#' + primaryDarkColor;
-    }
-    
-    return {
-      primaryColor,
-      primaryDarkColor,
-      textOnPrimaryColor,
-      backgroundColor
-    };
-  };
-  
-  // Create widget container
-  const createWidget = () => {
-    // Detect the website's color scheme
-    const colors = detectColorScheme();
-    
-    // Create widget styles with dynamic colors
-    const style = document.createElement('style');
-    style.textContent = \`
-      .azzar-chat-widget {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 9999;
-        font-family: 'Roboto', Arial, sans-serif;
-      }
-      
-      .azzar-chat-button {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        background-color: \${colors.primaryColor};
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-        color: \${colors.textOnPrimaryColor};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-      
-      .azzar-chat-button:hover {
-        background-color: \${colors.primaryDarkColor};
-        transform: scale(1.05);
-      }
-      
-      .azzar-chat-icon {
-        width: 30px;
-        height: 30px;
-      }
-      
-      .azzar-chat-window {
-        position: absolute;
-        bottom: 80px;
-        right: 0;
-        width: 350px;
-        height: 500px;
-        background: \${colors.backgroundColor || 'white'};
-        border-radius: 10px;
-        box-shadow: 0 5px 40px rgba(0, 0, 0, 0.2);
-        overflow: hidden;
-        display: none;
-        transition: all 0.3s ease;
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      
-      .azzar-chat-window.open {
-        display: block;
-        opacity: 1;
-        transform: translateY(0);
-      }
-      
-      .azzar-chat-iframe {
-        width: 100%;
-        height: 100%;
-        border: none;
-      }
-    \`;
-    document.head.appendChild(style);
-    
-    // Create widget container
-    const widget = document.createElement('div');
-    widget.className = 'azzar-chat-widget';
-    
-    // Create chat button
-    const button = document.createElement('div');
-    button.className = 'azzar-chat-button';
-    button.innerHTML = '<svg class="azzar-chat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/><path d="M7 9h10v2H7zm0-3h10v2H7zm0 6h7v2H7z"/></svg>';
-    
-    // Create chat window
-    const chatWindow = document.createElement('div');
-    chatWindow.className = 'azzar-chat-window';
-    
-    // Create iframe for chat
-    const iframe = document.createElement('iframe');
-    iframe.className = 'azzar-chat-iframe';
-    
-    // Pass the detected colors to the iframe via URL parameters
-    const colorParams = new URLSearchParams({
-      primaryColor: encodeURIComponent(colors.primaryColor),
-      primaryDarkColor: encodeURIComponent(colors.primaryDarkColor),
-      textOnPrimaryColor: encodeURIComponent(colors.textOnPrimaryColor),
-      backgroundColor: encodeURIComponent(colors.backgroundColor)
-    }).toString();
-    
-    iframe.src = '${origin}/widget-iframe?' + colorParams;
-    iframe.title = 'Chat with Azzar';
-    
-    // Add elements to the DOM
-    chatWindow.appendChild(iframe);
-    widget.appendChild(chatWindow);
-    widget.appendChild(button);
-    document.body.appendChild(widget);
-    
-    // Toggle chat window when button is clicked
-    button.addEventListener('click', () => {
-      chatWindow.classList.toggle('open');
-    });
-    
-    // Function to update colors when theme changes
-    const updateColors = () => {
-      const newColors = detectColorScheme();
-      button.style.backgroundColor = newColors.primaryColor;
-      chatWindow.style.backgroundColor = newColors.backgroundColor || 'white';
-      
-      // Update iframe URL with new colors
-      const newColorParams = new URLSearchParams({
-        primaryColor: encodeURIComponent(newColors.primaryColor),
-        primaryDarkColor: encodeURIComponent(newColors.primaryDarkColor),
-        textOnPrimaryColor: encodeURIComponent(newColors.textOnPrimaryColor),
-        backgroundColor: encodeURIComponent(newColors.backgroundColor)
-      }).toString();
-      
-      // Only reload if colors actually changed to prevent unnecessary refreshes
-      if (iframe.src.split('?')[1] !== newColorParams) {
-        iframe.src = '${origin}/widget-iframe?' + newColorParams;
-      }
-    };
-    
-    // Set up a mutation observer to watch for theme changes
-    if (window.MutationObserver) {
-      const observer = new MutationObserver((mutations) => {
-        // Check if relevant attributes have changed
-        const shouldUpdateColors = mutations.some(mutation => {
-          return mutation.type === 'attributes' || 
-                 (mutation.type === 'childList' && 
-                  mutation.target.nodeName.toLowerCase() === 'style');
-        });
-        
-        if (shouldUpdateColors) {
-          updateColors();
-        }
-      });
-      
-      // Observe the document root for attribute changes and style element changes
-      observer.observe(document.documentElement, { 
-        attributes: true,
-        childList: true,
-        subtree: true,
-        attributeFilter: ['class', 'style']
-      });
-    }
-  };
-  
-  // Initialize the widget once the page is fully loaded
-  if (document.readyState === 'complete') {
-    createWidget();
-  } else {
-    window.addEventListener('load', createWidget);
-  }
-})();
-  `;
-}
-
-// Function to generate the widget iframe HTML
-function generateWidgetHTML(url) {
-  // Extract color parameters from URL
-  const primaryColor = decodeURIComponent(url.searchParams.get('primaryColor') || '#6200ee');
-  const primaryDarkColor = decodeURIComponent(url.searchParams.get('primaryDarkColor') || '#3700b3');
-  const textOnPrimaryColor = decodeURIComponent(url.searchParams.get('textOnPrimaryColor') || 'white');
-  const backgroundColor = decodeURIComponent(url.searchParams.get('backgroundColor') || '#f5f5f5');
-
-  return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Azzar AI Chat</title>
-  <style>
-    :root {
-      --primary-color: ${primaryColor};
-      --primary-dark: ${primaryDarkColor};
-      --on-primary: ${textOnPrimaryColor};
-      --background: ${backgroundColor};
-    }
-    
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    body {
-      font-family: 'Roboto', Arial, sans-serif;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background-color: var(--background, #f5f5f5);
-    }
-    
-    .chat-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      max-width: 100%;
-      margin: 0 auto;
-      overflow: hidden;
-    }
-    
-    .messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-    }
-    
-    .message {
-      margin-bottom: 16px;
-      max-width: 80%;
-      padding: 12px 16px;
-      border-radius: 18px;
-      line-height: 1.4;
-      word-wrap: break-word;
-    }
-    
-    .user-message {
-      background-color: var(--primary-color, #6200ee);
-      color: var(--on-primary, white);
-      align-self: flex-end;
-      margin-left: auto;
-      border-bottom-right-radius: 4px;
-    }
-    
-    .ai-message {
-      background-color: #e0e0e0;
-      color: #333;
-      align-self: flex-start;
-      border-bottom-left-radius: 4px;
-    }
-    
-    /* Add styles for ordered and unordered lists */
-    .ai-message ol, .ai-message ul {
-      padding-left: 20px;
-      margin: 5px 0;
-    }
-    
-    .ai-message li {
-      margin-bottom: 5px;
-    }
-    
-    /* Code style */
-    .ai-message code {
-      background-color: rgba(0,0,0,0.05);
-      padding: 2px 4px;
-      border-radius: 3px;
-      font-family: monospace;
-    }
-    
-    .input-container {
-      display: flex;
-      padding: 12px;
-      border-top: 1px solid #e0e0e0;
-      background-color: white;
-    }
-    
-    .input-field {
-      flex: 1;
-      padding: 12px 16px;
-      border: 1px solid #e0e0e0;
-      border-radius: 24px;
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    
-    .input-field:focus {
-      border-color: var(--primary-color, #6200ee);
-    }
-    
-    .send-button {
-      background-color: var(--primary-color, #6200ee);
-      color: var(--on-primary, white);
-      border: none;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      margin-left: 8px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background-color 0.2s;
-    }
-    
-    .send-button:hover {
-      background-color: var(--primary-dark, #3700b3);
-    }
-    
-    .send-icon {
-      width: 24px;
-      height: 24px;
-    }
-    
-    .clear-button {
-      background-color: transparent;
-      color: #757575;
-      border: 1px solid #e0e0e0;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      margin-left: 8px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background-color 0.2s;
-    }
-    
-    .clear-button:hover {
-      background-color: #f5f5f5;
-    }
-    
-    .clear-icon {
-      width: 24px;
-      height: 24px;
-    }
-    
-    .typing-indicator {
-      display: none;
-      padding: 12px 16px;
-      background-color: #e0e0e0;
-      border-radius: 18px;
-      margin-bottom: 16px;
-      max-width: 80%;
-      align-self: flex-start;
-      border-bottom-left-radius: 4px;
-    }
-    
-    .typing-indicator.visible {
-      display: block;
-    }
-    
-    .dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background-color: #757575;
-      margin-right: 4px;
-      animation: typing 1.4s infinite ease-in-out;
-    }
-    
-    .dot:nth-child(1) {
-      animation-delay: 0s;
-    }
-    
-    .dot:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-    
-    .dot:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-    
-    @keyframes typing {
-      0%, 60%, 100% {
-        transform: translateY(0);
-      }
-      30% {
-        transform: translateY(-6px);
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="chat-container">
-    <div class="messages" id="messages">
-      <div class="message ai-message">
-        Halo! Aku Azzar. Freelance developer & educator dari Jogja. Ada yang bisa dibantu?
-      </div>
-    </div>
-    <div class="typing-indicator" id="typing-indicator">
-      <span class="dot"></span>
-      <span class="dot"></span>
-      <span class="dot"></span>
-    </div>
-    <div class="input-container">
-      <input type="text" class="input-field" id="input-field" placeholder="Type your message...">
-      <button class="send-button" id="send-button">
-        <svg class="send-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M0 0h24v24H0V0z" fill="none"/>
-          <path d="M3.4 20.4l17.45-7.48c.81-.35.81-1.49 0-1.84L3.4 3.6c-.66-.29-1.39.2-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/>
-        </svg>
-      </button>
-      <button class="clear-button" id="clear-button">
-        <svg class="clear-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M0 0h24v24H0V0z" fill="none"/>
-          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5l-1-1h-5l-1 1H5v2h14V4h-3.5z"/>
-        </svg>
-      </button>
-    </div>
-  </div>
-  
-  <script>
-    // Chat functionality
-    const messagesContainer = document.getElementById('messages');
-    const inputField = document.getElementById('input-field');
-    const sendButton = document.getElementById('send-button');
-    const clearButton = document.getElementById('clear-button');
-    const typingIndicator = document.getElementById('typing-indicator');
-    
-    // Simple function to convert markdown to HTML
-    function markdownToHtml(text) {
-      if (!text) return '';
-      
-      // Replace numbered lists (1. Item -> <ol><li>Item</li></ol>)
-      let listItems = [];
-      const listPattern = /^\\d+\\.\\s(.+)$/gm;
-      let hasNumberedList = listPattern.test(text);
-      
-      if (hasNumberedList) {
-        // Reset regexp lastIndex
-        listPattern.lastIndex = 0;
-        
-        // Collect all list items
-        let match;
-        while ((match = listPattern.exec(text)) !== null) {
-          listItems.push(\`<li>\${match[1]}</li>\`);
-        }
-        
-        // Remove list items from original text
-        text = text.replace(listPattern, '');
-        
-        // Add the ordered list with items
-        if (listItems.length > 0) {
-          text = \`<ol>\${listItems.join('')}</ol>\${text}\`;
-        }
-      }
-      
-      // Replace ** or __ for bold
-      text = text.replace(/(\\*\\*|__)(.*?)\\1/g, '<strong>$2</strong>');
-      
-      // Replace * or _ for italics
-      text = text.replace(/(\\*|_)(.*?)\\1/g, '<em>$2</em>');
-      
-      // Replace code blocks
-      text = text.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
-      
-      // Replace new lines with <br>
-      text = text.replace(/\\n/g, '<br>');
-      
-      return text;
-    }
-    
-    // Keep track of conversation history
-    let conversationHistory = [];
-    const MAX_HISTORY = 10; // Keep last 5 exchanges (10 messages)
-    
-    // Initialize with the welcome message
-    const welcomeMsg = 'Halo! Aku Azzar. Freelance developer & educator dari Jogja. Ada yang bisa dibantu?';
-    
-    // Load conversation history from localStorage if available
-    const loadConversationHistory = () => {
-      const savedHistory = localStorage.getItem('azzarChatHistory');
-      if (savedHistory) {
-        try {
-          conversationHistory = JSON.parse(savedHistory);
-          // Display saved messages (clear first to avoid duplicating welcome message)
-          messagesContainer.innerHTML = '';
-          conversationHistory.forEach(msg => {
-            addMessageToUI(msg.role === 'user' ? 'user' : 'ai', msg.content);
-          });
-        } catch (e) {
-          console.error('Error loading chat history:', e);
-          conversationHistory = [{
-            role: 'assistant',
-            content: welcomeMsg
-          }];
-        }
-      } else {
-        // Initialize with welcome message if no history exists
-        conversationHistory = [{
-          role: 'assistant',
-          content: welcomeMsg
-        }];
-      }
-      
-      // Save the initial history
-      saveConversationHistory();
-    };
-    
-    // Save conversation history to localStorage
-    const saveConversationHistory = () => {
-      localStorage.setItem('azzarChatHistory', JSON.stringify(conversationHistory));
-    };
-    
-    // Add a message to the UI
-    const addMessageToUI = (sender, message) => {
-      const messageElement = document.createElement('div');
-      messageElement.className = \`message \${sender}-message\`;
-      
-      // Convert markdown to HTML for AI messages only
-      if (sender === 'ai') {
-        messageElement.innerHTML = markdownToHtml(message);
-      } else {
-        messageElement.textContent = message;
-      }
-      
-      messagesContainer.appendChild(messageElement);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    };
-    
-    // Add a message to the conversation history
-    const addMessageToHistory = (role, content) => {
-      conversationHistory.push({ role, content });
-      // Keep only the last MAX_HISTORY messages
-      if (conversationHistory.length > MAX_HISTORY) {
-        conversationHistory = conversationHistory.slice(conversationHistory.length - MAX_HISTORY);
-      }
-      saveConversationHistory();
-    };
-    
-    // Send a message to the AI
-    const sendMessage = async () => {
-      const message = inputField.value.trim();
-      if (!message) return;
-      
-      // Add user message to UI and history
-      addMessageToUI('user', message);
-      addMessageToHistory('user', message);
-      
-      // Clear input field
-      inputField.value = '';
-      
-      // Show typing indicator
-      typingIndicator.classList.add('visible');
-      
-      try {
-        // Send request to AI
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ 
-            message,
-            history: conversationHistory.slice(0, -1) // Send all except the last message (which is the user's message we just added)
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        
-        const data = await response.json();
-        
-        // Hide typing indicator
-        typingIndicator.classList.remove('visible');
-        
-        // Add AI response to UI and history
-        const aiResponse = data.response || "Sorry, I couldn't process that request.";
-        addMessageToUI('ai', aiResponse);
-        addMessageToHistory('assistant', aiResponse);
-        
-      } catch (error) {
-        console.error('Error:', error);
-        // Hide typing indicator
-        typingIndicator.classList.remove('visible');
-        // Show error message
-        addMessageToUI('ai', "Sorry, there was an error processing your request. Please try again.");
-      }
-    };
-    
-    // Event listeners
-    sendButton.addEventListener('click', sendMessage);
-    
-    inputField.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        sendMessage();
-      }
-    });
-    
-    clearButton.addEventListener('click', () => {
-      // Clear UI
-      messagesContainer.innerHTML = '';
-      // Add back welcome message
-      const welcomeDiv = document.createElement('div');
-      welcomeDiv.className = 'message ai-message';
-      welcomeDiv.textContent = welcomeMsg;
-      messagesContainer.appendChild(welcomeDiv);
-      
-      // Reset history
-      conversationHistory = [{
-        role: 'assistant',
-        content: welcomeMsg
-      }];
-      saveConversationHistory();
-    });
-    
-    // Load conversation history on page load
-    loadConversationHistory();
-  </script>
-</body>
-</html>
-  `;
 }
