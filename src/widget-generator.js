@@ -76,23 +76,114 @@ export function generateWidgetJS(origin) {
         }
       }
       const osTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      const initialTheme = scriptTheme || osTheme;
       
-      const themeParams = new URLSearchParams({
-        theme: initialTheme,
-        // We can add more detected properties here in the future
-      }).toString();
+      // Step 2: Advanced theme detection
+      function detectHostTheme() {
+        const rootStyle = getComputedStyle(document.documentElement);
+        const bodyStyle = getComputedStyle(document.body);
+
+        // Helper to convert any CSS color string to a reliable RGB format
+        function getRgb(colorStr) {
+          if (!colorStr) return null;
+          let div = document.createElement('div');
+          div.style.color = colorStr;
+          // The browser will compute the color into a standardized RGB format.
+          document.body.appendChild(div);
+          let rgbStr = getComputedStyle(div).color;
+          document.body.removeChild(div);
+          return rgbStr;
+        }
+        
+        // Helper to calculate the luminance of a color to determine if it's light or dark
+        function getLuminance(color) {
+          const rgbStr = getRgb(color);
+          if (!rgbStr) return 0.5; // Default to neutral if color can't be parsed
+
+          const rgb = rgbStr.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
+          if (!rgb) return 0.5; // Can't parse, assume neutral
+          const r = parseInt(rgb[1]) / 255;
+          const g = parseInt(rgb[2]) / 255;
+          const b = parseInt(rgb[3]) / 255;
+          // Formula for perceived luminance
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        }
+
+        let detectedTheme = {
+          // Priority 1: Explicit CSS variables that match Glass-M3 overrides
+          'primary-color': rootStyle.getPropertyValue('--primary-accent').trim(),
+          'secondary-color': rootStyle.getPropertyValue('--secondary-accent').trim(),
+          'border-radius': rootStyle.getPropertyValue('--radius-interactive').trim(),
+          'font-family': bodyStyle.fontFamily || rootStyle.getPropertyValue('--font-family').trim(),
+        };
+
+        // This is a simplified check for background color to determine light/dark mode
+        const mainBgColor = bodyStyle.backgroundColor || rootStyle.backgroundColor;
+        if (mainBgColor) {
+            const luminance = getLuminance(mainBgColor);
+            detectedTheme['detected-theme-mode'] = luminance > 0.5 ? 'light' : 'dark';
+        }
+
+        // Priority 2: Infer other styles if variables are missing
+        // Infer accent colors from a prominent button or link
+        if (!detectedTheme['primary-color']) {
+            let primaryButton = document.querySelector('button[class*="primary"], button[class*="btn-primary"], button:not([style*="background: transparent"])');
+            if (primaryButton) {
+                const btnStyle = getComputedStyle(primaryButton);
+                detectedTheme['primary-color'] = btnStyle.backgroundColor;
+            } else {
+                const link = document.querySelector('a');
+                if (link) {
+                    detectedTheme['primary-color'] = getComputedStyle(link).color;
+                }
+            }
+        }
+        
+        // Infer border-radius from a button
+        if (!detectedTheme['border-radius']) {
+            const sampleButton = document.querySelector('button, input[type="submit"]');
+            if (sampleButton) {
+                detectedTheme['border-radius'] = getComputedStyle(sampleButton).borderRadius;
+            }
+        }
+
+        // Sanity check for border-radius to keep it within reasonable bounds for the design system
+        if (detectedTheme['border-radius']) {
+            const radius = parseFloat(detectedTheme['border-radius']);
+            if (radius > 30) {
+                delete detectedTheme['border-radius']; // Reset to default if value is extreme
+            }
+        }
+
+        // Clean up theme object, removing empty or transparent values
+        Object.keys(detectedTheme).forEach(key => {
+          const value = detectedTheme[key];
+          if (!value || value === 'rgba(0, 0, 0, 0)') {
+            delete detectedTheme[key];
+          }
+        });
+
+        return detectedTheme;
+      }
+
+      const hostTheme = detectHostTheme();
+      
+      // The final theme prioritizes the script tag, then the page's detected mode, then the OS mode.
+      const finalTheme = scriptTheme || hostTheme['detected-theme-mode'] || osTheme;
+      
+      // Step 3: Build the iframe URL with theme and Glass-M3 override parameters
+      const queryParams = new URLSearchParams({ theme: finalTheme });
+      for (const [key, value] of Object.entries(hostTheme)) {
+        queryParams.set(key, value);
+      }
+      const iframeSrc = \`${workerOrigin}/widget-iframe?\${queryParams.toString()}\`;
+      
+      const accentColor = hostTheme['primary-color'] || (finalTheme === 'dark' ? '#8b9ff9' : '#667eea');
+      const onAccentColor = hostTheme['on-primary'] || (finalTheme === 'dark' ? '#1a202c' : '#ffffff');
+      const windowBgColor = finalTheme === 'dark' ? 'rgba(26, 32, 44, 0.5)' : 'rgba(255, 255, 255, 0.5)';
 
       // Inject the CSS for the widget launcher and container
       const style = document.createElement('style');
-      style.textContent = `
-        :root {
-          --widget-primary-accent: ${initialTheme === 'dark' ? '#8b9ff9' : '#667eea'};
-          --widget-text-on-accent: ${initialTheme === 'dark' ? '#1a202c' : '#ffffff'};
-          --widget-radius-full: 9999px;
-          --widget-radius-container: 24px;
-        }
-
+      style.textContent = \`
         #azzar-ai-widget-container {
           position: fixed;
           bottom: 20px;
@@ -101,10 +192,10 @@ export function generateWidgetJS(origin) {
         }
 
         #azzar-ai-widget-button {
-          background: var(--widget-primary-accent);
-          color: var(--widget-text-on-accent);
+          background: \${accentColor};
+          color: \${onAccentColor};
           border: none;
-          border-radius: var(--widget-radius-full);
+          border-radius: 9999px;
           width: 60px;
           height: 60px;
           cursor: pointer;
@@ -130,7 +221,7 @@ export function generateWidgetJS(origin) {
           right: 0;
           width: 380px;
           height: 600px;
-          border-radius: var(--widget-radius-container);
+          border-radius: 24px;
           overflow: hidden;
           display: none;
           opacity: 0;
@@ -138,8 +229,7 @@ export function generateWidgetJS(origin) {
           transform: translateY(10px) scale(0.95);
           transition: opacity 0.3s ease, transform 0.3s ease;
           box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-          /* The iframe will have the glass background, so this can be solid */
-          background-color: ${initialTheme === 'dark' ? 'rgba(26, 32, 44, 0.5)' : 'rgba(255, 255, 255, 0.5)'};
+          background-color: \${windowBgColor};
         }
 
         #azzar-ai-widget-window.open {
@@ -147,7 +237,7 @@ export function generateWidgetJS(origin) {
           opacity: 1;
           transform: translateY(0) scale(1);
         }
-      `;
+      \`;
       document.head.appendChild(style);
 
       // Create a container for the widget
@@ -164,10 +254,11 @@ export function generateWidgetJS(origin) {
       
       const iframe = document.createElement('iframe');
       iframe.id = 'azzar-ai-widget';
-      iframe.src = \`\${workerOrigin}/widget-iframe?\${themeParams}\`;
+      iframe.src = iframeSrc;
       iframe.style.border = 'none';
       iframe.style.width = '100%';
-      iframe.title = 'Chat with FREA';
+      iframe.style.height = '100%';
+      iframe.title = 'Chat Widget';
       
       chatWindow.appendChild(iframe);
       widgetContainer.appendChild(chatWindow);
@@ -177,13 +268,7 @@ export function generateWidgetJS(origin) {
         chatWindow.classList.toggle('open');
       });
     };
-    
-    // Initialize the widget
-    if (document.readyState !== 'loading') {
-      createWidget();
-    } else {
-      document.addEventListener('DOMContentLoaded', createWidget);
-    }
+    createWidget();
   })();
-    `;
-  }
+  `;
+}

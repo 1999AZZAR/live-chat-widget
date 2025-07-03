@@ -21,28 +21,33 @@ Add the following script tag to your website's HTML. The widget will automatical
 
 ## Theming & Customization
 
-The widget features a beautiful, modern **Glass-M3** design system that is applied out-of-the-box. It includes both a light and a dark theme, which can be controlled in two ways, in order of priority:
+The widget intelligently determines its theme by checking sources in a specific order of priority, ensuring it always looks great and integrates seamlessly with your site's design while maintaining a modern Glass-M3 aesthetic.
 
-### 1. Manual Theme Selection (Highest Priority)
+### Theme Priority
 
-You can force a specific theme by adding the `data-color` attribute to the script tag. This is the most direct way to set a theme.
+1.  **Host Page Theme Detection (Highest Priority):**
+    The widget automatically attempts to detect the theme from your website's existing styles. It looks for:
+    -   **CSS Variables:** Reads Glass-M3 variables like `--primary-accent` and `--radius-interactive` if you've defined them.
+    -   **Inferred Styles:** If variables aren't present, it infers colors from prominent elements like buttons and links, and border-radius from buttons.
+    -   **Background Color:** Analyzes your site's main background color to decide if a light or dark theme should be applied.
 
--   **Force Dark Mode:**
-    ```html
-    <script src=".../widget.js" data-color="dark"></script>
-    ```
--   **Force Light Mode:**
-    ```html
-    <script src=".../widget.js" data-color="light"></script>
-    ```
+2.  **`data-color` Attribute (Manual Override):**
+    You can force a specific theme by adding the `data-color` attribute to the script tag. This will override the automatic detection.
+    -   **Force Dark Mode:**
+        ```html
+        <script src=".../widget.js" data-color="dark"></script>
+        ```
+    -   **Force Light Mode:**
+        ```html
+        <script src=".../widget.js" data-color="light"></script>
+        ```
 
-### 2. OS Preference (Automatic Fallback)
+3.  **OS Preference (Fallback):**
+    If no theme can be determined from the methods above, the widget will fall back to the user's operating system preference (`prefers-color-scheme`).
 
-If `data-color` is not set, the widget will automatically match the user's operating system preference (`prefers-color-scheme`).
+### Customizing with CSS Variables
 
-### Advanced Customization (Via CSS Variables)
-
-While the widget is designed to look great without any changes, you can override the core Glass-M3 variables by defining them on your own site's `:root`. The widget will automatically detect and apply them.
+For the most seamless integration, define any of the following Glass-M3 CSS variables in your site's stylesheet (e.g., in a `:root` block). The widget will automatically adopt these styles.
 
 | CSS Variable         | Description                                     |
 | -------------------- | ----------------------------------------------- |
