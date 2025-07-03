@@ -209,6 +209,7 @@ export function generateWidgetHTML(url) {
       background-color: ${colors.aiMessageBg};
       border-radius: ${styles.borderRadius};
       margin-bottom: 16px;
+      margin-left: 16px;
       max-width: 80%;
       align-self: flex-start;
       border-bottom-left-radius: 4px;
