@@ -3,22 +3,56 @@ export function generateWidgetHTML(url) {
   const params = url.searchParams;
   const workerOrigin = url.origin; // The origin of the worker itself
   
-  // Step 1: Determine the base theme (dark/light)
-  const theme = params.get('theme') === 'dark' ? 'dark' : 'light';
+  // Step 1: Determine the base theme (dark/light) as a fallback
+  const baseTheme = params.get('theme') === 'dark' ? 'dark' : 'light';
 
-  // Step 2: Get dynamic styles from URL params to override Glass-M3 variables
-  const overrides = {
-    '--primary-accent': params.get('primary-color'),
-    '--secondary-accent': params.get('secondary-color'),
-    '--radius-interactive': params.get('border-radius'),
-    '--font-family': params.get('font-family'),
+  // Step 2: Define default color schemes for dark and light modes
+  const colorDefaults = {
+    light: {
+      accentColor: '#6200EE',
+      accentColorDark: '#3700b3',
+      onAccentColor: 'white',
+      chatContainerBg: 'rgba(255, 255, 255, 0.8)',
+      chatWindowBg: '#f5f5f5',
+      aiMessageBg: '#e0e0e0',
+      aiMessageColor: '#333333',
+      textColor: '#333333'
+    },
+    dark: {
+      accentColor: '#BB86FC',
+      accentColorDark: '#D0BCFF',
+      onAccentColor: '#381E72',
+      chatContainerBg: 'rgba(18, 18, 18, 0.8)',
+      chatWindowBg: '#121212',
+      aiMessageBg: '#333333',
+      aiMessageColor: 'white',
+      textColor: 'white'
+    }
   };
 
-  // Filter out any null or undefined overrides
-  const cssOverrides = Object.entries(overrides)
-    .filter(([, value]) => value)
-    .map(([key, value]) => `${key}: ${value};`)
-    .join('\n');
+  // Step 3: Get styling properties from URL params, using defaults as fallbacks
+  const styles = {
+    fontFamily: params.get('font-family') || "'Roboto', Arial, sans-serif",
+    borderRadius: params.get('border-radius') || '18px',
+    inputBorderRadius: params.get('border-radius') ? `calc(${params.get('border-radius')} + 6px)` : '24px'
+  };
+  
+  // Get colors from URL params, or use the defaults for the base theme
+  const colors = {
+    accentColor: params.get('primary-color') || colorDefaults[baseTheme].accentColor,
+    accentColorDark: params.get('primary-dark') || colorDefaults[baseTheme].accentColorDark,
+    onAccentColor: params.get('on-primary') || colorDefaults[baseTheme].onAccentColor,
+    chatWindowBg: params.get('background') || colorDefaults[baseTheme].chatWindowBg,
+    aiMessageBg: params.get('nonary-color') || colorDefaults[baseTheme].aiMessageBg,
+    chatContainerBg: params.get('octonary-color') || colorDefaults[baseTheme].chatContainerBg,
+    aiMessageColor: colorDefaults[baseTheme].aiMessageColor,
+    textColor: params.get('text-color') || colorDefaults[baseTheme].textColor
+  };
+  
+  // Step 4: Derive final colors for the UI components
+  const userMessageBg = colors.accentColor;
+  const userMessageColor = colors.onAccentColor;
+  const sendButtonHoverBg = colors.accentColorDark;
 
   return `
 <!DOCTYPE html>
@@ -28,233 +62,216 @@ export function generateWidgetHTML(url) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chat with FREA</title>
   <style>
-    /* 1. Glass-M3 Design System: Base Variables */
-    :root {
-      /* Base Font */
-      --font-family: "'Roboto', Arial, sans-serif";
-
-      /* Radii Hierarchy */
-      --radius-container: 24px;
-      --radius-nested: 16px;
-      --radius-interactive: 12px;
-      --radius-small: 6px;
-      --radius-full: 9999px;
-
-      /* Glass Surface */
-      --glass-blur: blur(12px);
-    }
-
-    /* 2. Light Theme (Default) */
-    :root {
-      --primary-accent: #667eea;
-      --secondary-accent: #764ba2;
-      --success-accent: #5ae4a8;
-      --primary-gradient: linear-gradient(135deg, var(--primary-accent) 0%, var(--secondary-accent) 100%);
-      
-      --text-primary: #2d3748;
-      --text-secondary: #4a5568;
-      --text-on-accent: #ffffff;
-      
-      --surface-background: rgba(255, 255, 255, 0.6);
-      --surface-border: 1px solid rgba(255, 255, 255, 0.3);
-      --surface-nested: #f0f2f5;
-    }
-
-    /* 3. Dark Theme */
-    body[data-theme='dark'] {
-      --primary-accent: #8b9ff9;
-      --secondary-accent: #9d7cc8;
-      --success-accent: #5ae4a8;
-
-      --text-primary: #e2e8f0;
-      --text-secondary: #a0aec0;
-      --text-on-accent: #1a202c;
-
-      --surface-background: rgba(26, 32, 44, 0.7);
-      --surface-border: 1px solid rgba(255, 255, 255, 0.1);
-      --surface-nested: #2d3748;
-    }
-
-    /* 4. Dynamic Overrides from Host Page */
-    :root {
-      ${cssOverrides}
-    }
-
-    /* Base Styles */
     body {
       margin: 0;
       height: 100vh;
       display: flex;
-      flex-direction: column;
-      font-family: var(--font-family);
-      background: transparent; /* Let the parent control the background */
+      justify-content: center;
+      align-items: center;
+      background: transparent;
+      backdrop-filter: blur(20px);
+      font-family: ${styles.fontFamily};
     }
-
     .chat-container {
       width: 100%;
       height: 100%;
+      border-radius: 16px;
+      background: ${colors.chatContainerBg};
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
       display: flex;
       flex-direction: column;
-      background: var(--surface-background);
-      backdrop-filter: var(--glass-blur);
-      -webkit-backdrop-filter: var(--glass-blur);
-      border: var(--surface-border);
-      border-radius: var(--radius-container);
-      color: var(--text-primary);
       overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      color: ${colors.textColor};
     }
-
     .messages {
       flex: 1;
       overflow-y: auto;
       padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
     }
     
     .message {
-      max-width: 85%;
-      padding: 10px 14px;
-      border-radius: var(--radius-interactive);
-      line-height: 1.5;
+      margin-bottom: 16px;
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: ${styles.borderRadius};
+      line-height: 1.4;
       word-wrap: break-word;
-      transition: all 0.2s ease;
     }
     
     .user-message {
-      background: var(--primary-gradient);
-      color: var(--text-on-accent);
+      background-color: ${userMessageBg};
+      color: ${userMessageColor};
       align-self: flex-end;
-      border-bottom-right-radius: var(--radius-small);
+      margin-left: auto;
+      border-bottom-right-radius: 4px;
     }
     
     .ai-message {
-      background: var(--surface-nested);
-      color: var(--text-secondary);
+      background-color: ${colors.aiMessageBg};
+      color: ${colors.aiMessageColor};
       align-self: flex-start;
-      border-bottom-left-radius: var(--radius-small);
+      border-bottom-left-radius: 4px;
     }
     
+    /* Add styles for ordered and unordered lists */
     .ai-message ol, .ai-message ul {
       padding-left: 20px;
-      margin: 8px 0;
+      margin: 5px 0;
     }
     
     .ai-message li {
-      margin-bottom: 6px;
+      margin-bottom: 5px;
     }
     
+    /* Code style */
     .ai-message code {
-      background: rgba(0,0,0,0.08);
-      padding: 3px 5px;
-      border-radius: var(--radius-small);
+      background-color: rgba(0,0,0,0.05);
+      padding: 2px 4px;
+      border-radius: 3px;
       font-family: monospace;
-      font-size: 0.9em;
-    }
-
-    body[data-theme='dark'] .ai-message code {
-      background: rgba(255,255,255,0.1);
     }
     
-    .input-area {
+    .input-container {
       display: flex;
-      align-items: center;
-      gap: 8px;
       padding: 12px;
-      border-top: var(--surface-border);
+      border-top: 1px solid ${colors.aiMessageBg};
+      background-color: ${colors.chatContainerBg};
     }
     
-    #chat-input {
+    .input-field {
       flex: 1;
-      padding: 10px 16px;
-      border: none;
-      border-radius: var(--radius-full);
-      font-size: 16px;
+      padding: 12px 16px;
+      border: 1px solid ${colors.aiMessageBg};
+      border-radius: ${styles.inputBorderRadius};
+      font-size: 14px;
       outline: none;
-      background: var(--surface-nested);
-      color: var(--text-primary);
-      transition: all 0.2s ease;
+      transition: border-color 0.2s;
+      background-color: ${colors.chatWindowBg};
+      color: ${colors.textColor};
     }
     
-    #chat-input:focus {
-      box-shadow: 0 0 0 2px var(--primary-accent);
+    .input-field:focus {
+      border-color: ${colors.accentColor};
     }
     
-    #send-button {
-      background: var(--primary-gradient);
-      color: var(--text-on-accent);
+    .send-button {
+      background-color: ${colors.accentColor};
+      color: ${userMessageColor};
       border: none;
-      border-radius: var(--radius-full);
-      width: 44px;
-      height: 44px;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      margin-left: 8px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.2s ease;
-      flex-shrink: 0;
+      transition: background-color 0.2s;
     }
     
-    #send-button:hover {
-      transform: scale(1.05);
+    .send-button:hover {
+      background-color: ${sendButtonHoverBg};
     }
-
-    #send-button svg {
-        width: 24px;
-        height: 24px;
+    
+    .send-icon {
+      width: 24px;
+      height: 24px;
+    }
+    
+    .clear-button {
+      background-color: transparent;
+      color: ${colors.accentColor};
+      border: 1px solid ${colors.aiMessageBg};
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      margin-left: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    
+    .clear-button:hover {
+      background-color: ${colors.aiMessageBg};
+    }
+    
+    .clear-icon {
+      width: 24px;
+      height: 24px;
     }
     
     .typing-indicator {
       display: none;
-      padding: 10px 14px;
-      background: var(--surface-nested);
-      border-radius: var(--radius-interactive);
-      border-bottom-left-radius: var(--radius-small);
+      padding: 12px 16px;
+      background-color: ${colors.aiMessageBg};
+      border-radius: ${styles.borderRadius};
+      margin-bottom: 16px;
+      max-width: 80%;
       align-self: flex-start;
+      border-bottom-left-radius: 4px;
     }
     
     .typing-indicator.visible {
-      display: flex;
-      gap: 5px;
-      align-items: center;
+      display: block;
     }
     
     .dot {
+      display: inline-block;
       width: 8px;
       height: 8px;
-      border-radius: var(--radius-full);
-      background: var(--text-secondary);
+      border-radius: 50%;
+      background-color: ${colors.accentColor};
+      margin: 0 4px;
       animation: typing 1.4s infinite ease-in-out;
     }
     
-    .dot:nth-child(1) { animation-delay: 0s; }
-    .dot:nth-child(2) { animation-delay: 0.2s; }
-    .dot:nth-child(3) { animation-delay: 0.4s; }
+    .dot:nth-child(1) {
+      animation-delay: 0s;
+    }
+    
+    .dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    
+    .dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
     
     @keyframes typing {
-      0%, 60%, 100% { transform: translateY(0); }
-      30% { transform: translateY(-5px); }
+      0%, 60%, 100% {
+        transform: translateY(0);
+      }
+      30% {
+        transform: translateY(-6px);
+      }
     }
-
-    /* Scrollbar Styles */
-    ::-webkit-scrollbar {
-      width: 6px;
+    
+    .ai-message a {
+      color: ${colors.accentColor};
+      text-decoration: none; /* Remove underline by default */
+      border-bottom: 1px solid rgba(${colors.accentColor}, 0.4); /* Subtle bottom border */
+      word-break: break-all;
+      font-weight: 500;
+      transition: all 0.2s ease-in-out;
+      padding: 0 2px;
+      border-radius: 2px;
+      position: relative;
+      display: inline-block;
     }
-    ::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: var(--text-secondary);
-      border-radius: var(--radius-full);
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--primary-accent);
+    
+    .ai-message a:hover {
+      text-decoration: none;
+      background-color: #f0e6ff; /* Light purple background */
+      color: ${colors.accentColor};
+      box-shadow: 0 1px 0 ${colors.accentColor};
+      transform: translateY(-1px);
     }
   </style>
 </head>
-<body data-theme="${theme}">
+<body>
   <div class="chat-container">
     <div class="messages" id="messages">
       <!-- Welcome message will be loaded here -->

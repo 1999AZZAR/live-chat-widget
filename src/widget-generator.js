@@ -76,6 +76,7 @@ export function generateWidgetJS(origin) {
         }
       }
       const osTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      const initialTheme = scriptTheme || osTheme;
       
       // Step 2: Advanced theme detection
       function detectHostTheme() {
@@ -109,33 +110,111 @@ export function generateWidgetJS(origin) {
         }
 
         let detectedTheme = {
-          // Priority 1: Explicit CSS variables that match Glass-M3 overrides
-          'primary-color': rootStyle.getPropertyValue('--primary-accent').trim(),
-          'secondary-color': rootStyle.getPropertyValue('--secondary-accent').trim(),
-          'border-radius': rootStyle.getPropertyValue('--radius-interactive').trim(),
-          'font-family': bodyStyle.fontFamily || rootStyle.getPropertyValue('--font-family').trim(),
+          // Priority 1: Explicit CSS variables
+          'primary-color': rootStyle.getPropertyValue('--primary-color').trim(),
+          'primary-dark': rootStyle.getPropertyValue('--primary-dark').trim(),
+          'on-primary': rootStyle.getPropertyValue('--on-primary').trim(),
+          'background': rootStyle.getPropertyValue('--background').trim(),
+          'text-color': rootStyle.getPropertyValue('--text-color').trim(),
+          'border-radius': rootStyle.getPropertyValue('--border-radius').trim(),
+          'nonary-color': rootStyle.getPropertyValue('--nonary-color').trim(),
+          'octonary-color': rootStyle.getPropertyValue('--octonary-color').trim(),
+          // Always detect font-family
+          'font-family': bodyStyle.fontFamily
         };
 
-        // This is a simplified check for background color to determine light/dark mode
-        const mainBgColor = bodyStyle.backgroundColor || rootStyle.backgroundColor;
+        // Final approach: Determine theme based on the dominant background color of the visible viewport.
+        // This is the most robust method as it reflects what the user actually sees.
+        function getDominantViewportColor() {
+          try {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d', { willReadFrequently: true });
+            const { innerWidth: width, innerHeight: height } = window;
+            canvas.width = width;
+            canvas.height = height;
+
+            // Draw the visible part of the page onto the canvas
+            context.drawWindow(window, 0, 0, width, height, 'rgb(255,255,255)');
+            
+            // Sample a few key points to determine dominant color
+            // (top-left, top-right, center, bottom-left, bottom-right)
+            const points = [
+              { x: 50, y: 50 },
+              { x: width - 50, y: 50 },
+              { x: width / 2, y: height / 2 },
+              { x: 50, y: height - 50 },
+              { x: width - 50, y: height - 50 }
+            ];
+
+            const colorCounts = {};
+            let maxCount = 0;
+            let dominantColor = 'rgb(255, 255, 255)'; // Default to white
+
+            points.forEach(p => {
+              const [r, g, b] = context.getImageData(p.x, p.y, 1, 1).data;
+              const color = 'rgb(' + r + ', ' + g + ', ' + b + ')';
+              colorCounts[color] = (colorCounts[color] || 0) + 1;
+              if (colorCounts[color] > maxCount) {
+                maxCount = colorCounts[color];
+                dominantColor = color;
+              }
+            });
+            
+            return dominantColor;
+
+          } catch (e) {
+            console.error("Could not determine viewport color, falling back to body.", e);
+            // Fallback if drawWindow is not available or fails (e.g., security restrictions)
+            return bodyStyle.backgroundColor || rootStyle.backgroundColor;
+          }
+        }
+        
+        const mainBgColor = getDominantViewportColor();
         if (mainBgColor) {
+            if (!detectedTheme['background']) detectedTheme['background'] = mainBgColor;
             const luminance = getLuminance(mainBgColor);
             detectedTheme['detected-theme-mode'] = luminance > 0.5 ? 'light' : 'dark';
         }
 
         // Priority 2: Infer other styles if variables are missing
-        // Infer accent colors from a prominent button or link
+        if (!detectedTheme['text-color']) {
+            const mainContentElem = document.querySelector('main, article') || document.body;
+            detectedTheme['text-color'] = getComputedStyle(mainContentElem).color;
+        }
+
+        // Infer accent colors from a prominent button or link, with Tailwind CSS support
         if (!detectedTheme['primary-color']) {
-            let primaryButton = document.querySelector('button[class*="primary"], button[class*="btn-primary"], button:not([style*="background: transparent"])');
-            if (primaryButton) {
-                const btnStyle = getComputedStyle(primaryButton);
-                detectedTheme['primary-color'] = btnStyle.backgroundColor;
-            } else {
-                const link = document.querySelector('a');
-                if (link) {
-                    detectedTheme['primary-color'] = getComputedStyle(link).color;
-                }
+          let primaryButton = null;
+          const allButtons = Array.from(document.querySelectorAll('button'));
+
+          // Tailwind-specific detection: find a button with a non-neutral 'bg-' class
+          const tailwindButtons = allButtons.filter(btn => {
+            const classList = Array.from(btn.classList);
+            const hasBgClass = classList.some(c => c.startsWith('bg-') && !c.includes('transparent'));
+            const isNeutral = classList.some(c => c.match(/bg-(gray|zinc|neutral|stone|slate|white|black)/));
+            return hasBgClass && !isNeutral;
+          });
+
+          if (tailwindButtons.length > 0) {
+            primaryButton = tailwindButtons[0]; // Use the first likely candidate
+          }
+
+          // Fallback to generic button detection if no Tailwind button is found
+          if (!primaryButton) {
+            primaryButton = document.querySelector('button[class*="primary"], button[class*="btn-primary"], button:not([style*="background: transparent"])');
+          }
+
+          if (primaryButton) {
+            const btnStyle = getComputedStyle(primaryButton);
+            detectedTheme['primary-color'] = btnStyle.backgroundColor;
+            detectedTheme['on-primary'] = btnStyle.color;
+          } else {
+            // Last resort: check a link's color
+            const link = document.querySelector('a');
+            if (link) {
+                detectedTheme['primary-color'] = getComputedStyle(link).color;
             }
+          }
         }
         
         // Infer border-radius from a button
@@ -146,10 +225,10 @@ export function generateWidgetJS(origin) {
             }
         }
 
-        // Sanity check for border-radius to keep it within reasonable bounds for the design system
+        // Sanity check for border-radius to keep it within reasonable bounds
         if (detectedTheme['border-radius']) {
             const radius = parseFloat(detectedTheme['border-radius']);
-            if (radius > 30) {
+            if (radius < 4 || radius > 30) {
                 delete detectedTheme['border-radius']; // Reset to default if value is extreme
             }
         }
@@ -170,105 +249,146 @@ export function generateWidgetJS(origin) {
       // The final theme prioritizes the script tag, then the page's detected mode, then the OS mode.
       const finalTheme = scriptTheme || hostTheme['detected-theme-mode'] || osTheme;
       
-      // Step 3: Build the iframe URL with theme and Glass-M3 override parameters
+      // Step 3: Build the iframe URL with theme and color parameters
       const queryParams = new URLSearchParams({ theme: finalTheme });
       for (const [key, value] of Object.entries(hostTheme)) {
         queryParams.set(key, value);
       }
-      const iframeSrc = \`${workerOrigin}/widget-iframe?\${queryParams.toString()}\`;
+      const iframeSrc = \`\${workerOrigin}/widget-iframe?\${queryParams.toString()}\`;
       
-      const accentColor = hostTheme['primary-color'] || (finalTheme === 'dark' ? '#8b9ff9' : '#667eea');
-      const onAccentColor = hostTheme['on-primary'] || (finalTheme === 'dark' ? '#1a202c' : '#ffffff');
-      const windowBgColor = finalTheme === 'dark' ? 'rgba(26, 32, 44, 0.5)' : 'rgba(255, 255, 255, 0.5)';
-
-      // Inject the CSS for the widget launcher and container
+      const accentColor = hostTheme['primary-color'] || (finalTheme === 'dark' ? '#BB86FC' : '#6200EE');
+      const buttonBg = finalTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)';
+      const windowBg = hostTheme['octonary-color'] || (finalTheme === 'dark' ? 'rgba(28, 28, 28, 0.75)' : 'rgba(255, 255, 255, 0.75)');
+      
+      // Inject enhanced Material You button and window styles
       const style = document.createElement('style');
       style.textContent = \`
-        #azzar-ai-widget-container {
+        @keyframes wave {
+          0% {
+            transform: scale(1);
+            opacity: 0.6;
+          }
+          100% {
+            transform: scale(2.5);
+            opacity: 0;
+          }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .azzar-chat-widget {
           position: fixed;
           bottom: 20px;
           right: 20px;
-          z-index: 9999;
+          font-family: 'Roboto', sans-serif;
+          z-index: 10000;
+          animation: fadeIn 0.5s ease-in-out;
         }
-
-        #azzar-ai-widget-button {
-          background: \${accentColor};
-          color: \${onAccentColor};
-          border: none;
-          border-radius: 9999px;
+        .azzar-chat-button {
+          position: relative;
           width: 60px;
           height: 60px;
-          cursor: pointer;
+          border-radius: 50%;
+          background: \${accentColor};
+          border: none;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          transition: transform 0.2s ease;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 8px 24px \${accentColor}40;
+          cursor: pointer;
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-
-        #azzar-ai-widget-button:hover {
+        .azzar-chat-button::before, .azzar-chat-button::after {
+          content: '';
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          background-color: \${accentColor};
+          animation: wave 2.5s infinite ease-out;
+          z-index: -1;
+        }
+        .azzar-chat-button::after {
+            animation-delay: -1.25s; /* Start the second wave halfway through */
+        }
+        .azzar-chat-button:hover {
           transform: scale(1.1);
+          box-shadow: 0 6px 16px rgba(0,0,0,0.2), 0 12px 32px \${accentColor}60;
         }
-
-        #azzar-ai-widget-button svg {
+        .azzar-chat-icon {
           width: 32px;
           height: 32px;
+          transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          color: \${hostTheme['on-primary'] || (finalTheme === 'dark' ? '#000' : '#fff')};
         }
-
-        #azzar-ai-widget-window {
+        .azzar-chat-button:hover .azzar-chat-icon {
+          transform: rotate(20deg) scale(1.15);
+        }
+        .azzar-chat-window {
           position: absolute;
           bottom: 80px;
           right: 0;
-          width: 380px;
-          height: 600px;
-          border-radius: 24px;
+          width: 360px;
+          height: 500px;
+          border-radius: 18px;
+          background: \${windowBg};
+          backdrop-filter: saturate(180%) blur(20px);
+          -webkit-backdrop-filter: saturate(180%) blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 12px 32px rgba(0,0,0,0.25);
           overflow: hidden;
           display: none;
           opacity: 0;
           transform-origin: bottom right;
           transform: translateY(10px) scale(0.95);
-          transition: opacity 0.3s ease, transform 0.3s ease;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-          background-color: \${windowBgColor};
+          transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-
-        #azzar-ai-widget-window.open {
+        .azzar-chat-window.open {
           display: block;
           opacity: 1;
           transform: translateY(0) scale(1);
         }
+        .azzar-chat-iframe {
+          width: 100%;
+          height: 100%;
+          border: none;
+        }
       \`;
       document.head.appendChild(style);
-
-      // Create a container for the widget
-      const widgetContainer = document.createElement('div');
-      widgetContainer.id = 'azzar-ai-widget-container';
-      document.body.appendChild(widgetContainer);
-
-      const button = document.createElement('button');
-      button.id = 'azzar-ai-widget-button';
-      button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>';
-
+      
+      // Create widget structure
+      const widget = document.createElement('div');
+      widget.className = 'azzar-chat-widget';
+      
+      const button = document.createElement('div');
+      button.className = 'azzar-chat-button';
+      button.innerHTML = '<svg class="azzar-chat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM18 14H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>';
+      
       const chatWindow = document.createElement('div');
-      chatWindow.id = 'azzar-ai-widget-window';
+      chatWindow.className = 'azzar-chat-window';
       
       const iframe = document.createElement('iframe');
-      iframe.id = 'azzar-ai-widget';
+      iframe.className = 'azzar-chat-iframe';
       iframe.src = iframeSrc;
-      iframe.style.border = 'none';
-      iframe.style.width = '100%';
-      iframe.style.height = '100%';
-      iframe.title = 'Chat Widget';
+      iframe.title = 'Chat with FREA';
       
       chatWindow.appendChild(iframe);
-      widgetContainer.appendChild(chatWindow);
-      widgetContainer.appendChild(button);
-
+      widget.appendChild(chatWindow);
+      widget.appendChild(button);
+      document.body.appendChild(widget);
+      
       button.addEventListener('click', () => {
         chatWindow.classList.toggle('open');
       });
     };
-    createWidget();
+    
+    // Initialize the widget
+    if (document.readyState !== 'loading') {
+      createWidget();
+    } else {
+      document.addEventListener('DOMContentLoaded', createWidget);
+    }
   })();
-  `;
-}
+    `;
+  }

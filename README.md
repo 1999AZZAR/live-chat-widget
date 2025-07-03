@@ -21,48 +21,50 @@ Add the following script tag to your website's HTML. The widget will automatical
 
 ## Theming & Customization
 
-The widget intelligently determines its theme by checking sources in a specific order of priority, ensuring it always looks great and integrates seamlessly with your site's design while maintaining a modern Glass-M3 aesthetic.
+The widget intelligently determines its theme by checking sources in a specific order of priority. This allows for flexible and powerful customization.
 
 ### Theme Priority
 
-1.  **Host Page Theme Detection (Highest Priority):**
-    The widget automatically attempts to detect the theme from your website's existing styles. It looks for:
-    -   **CSS Variables:** Reads Glass-M3 variables like `--primary-accent` and `--radius-interactive` if you've defined them.
-    -   **Inferred Styles:** If variables aren't present, it infers colors from prominent elements like buttons and links, and border-radius from buttons.
-    -   **Background Color:** Analyzes your site's main background color to decide if a light or dark theme should be applied.
-
-2.  **`data-color` Attribute (Manual Override):**
-    You can force a specific theme by adding the `data-color` attribute to the script tag. This will override the automatic detection.
-    -   **Force Dark Mode:**
+1.  **`data-color` Attribute (Highest Priority):**
+    You can force a specific theme by adding the `data-color` attribute to the script tag. This is the easiest and most direct way to set a theme.
+    -   Force dark mode:
         ```html
         <script src=".../widget.js" data-color="dark"></script>
         ```
-    -   **Force Light Mode:**
+    -   Force light mode:
         ```html
         <script src=".../widget.js" data-color="light"></script>
         ```
+
+2.  **Host Page Theme Detection (Automatic):**
+    If `data-color` is not set, the widget attempts to detect the theme from your website's existing styles. It looks for:
+    -   **Dominant Viewport Color:** Analyzes the main background color of your site to decide if it's light or dark.
+    -   **CSS Variables:** Reads standard CSS variables like `--primary-color`, `--background`, `--text-color`, etc., to match your site's branding.
+    -   **Inferred Styles:** If variables aren't present, it infers colors from prominent elements like buttons and links.
 
 3.  **OS Preference (Fallback):**
     If no theme can be determined from the methods above, the widget will fall back to the user's operating system preference (`prefers-color-scheme`).
 
 ### Customizing with CSS Variables
 
-For the most seamless integration, define any of the following Glass-M3 CSS variables in your site's stylesheet (e.g., in a `:root` block). The widget will automatically adopt these styles.
+For the most seamless integration, define any of the following CSS variables in your site's stylesheet (e.g., in a `:root` block). The widget will automatically adopt these styles.
 
-| CSS Variable         | Description                                     |
-| -------------------- | ----------------------------------------------- |
-| `--primary-accent`   | The main brand color for gradients and highlights. |
-| `--secondary-accent` | The secondary brand color for gradients.        |
-| `--radius-interactive` | The border radius for buttons, inputs, etc.   |
-| `--font-family`      | The font used throughout the widget.            |
+| CSS Variable       | Description                                  |
+| ------------------ | -------------------------------------------- |
+| `--primary-color`  | Main accent color for buttons, user messages |
+| `--on-primary`     | Text color for elements with a primary background |
+| `--background`     | The main background of the chat window       |
+| `--text-color`     | Primary text color                           |
+| `--border-radius`  | Border radius for bubbles and inputs         |
 
 **Example:**
 ```css
 :root {
-  --primary-accent: #007bff;
-  --secondary-accent: #6f42c1;
-  --radius-interactive: 8px;
-  --font-family: 'Georgia', serif;
+  --primary-color: #007bff;
+  --on-primary: #ffffff;
+  --background: #f8f9fa;
+  --text-color: #212529;
+  --border-radius: 12px;
 }
 ```
 
