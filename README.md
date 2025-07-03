@@ -21,50 +21,43 @@ Add the following script tag to your website's HTML. The widget will automatical
 
 ## Theming & Customization
 
-The widget intelligently determines its theme by checking sources in a specific order of priority. This allows for flexible and powerful customization.
+The widget features a beautiful, modern **Glass-M3** design system that is applied out-of-the-box. It includes both a light and a dark theme, which can be controlled in two ways, in order of priority:
 
-### Theme Priority
+### 1. Manual Theme Selection (Highest Priority)
 
-1.  **`data-color` Attribute (Highest Priority):**
-    You can force a specific theme by adding the `data-color` attribute to the script tag. This is the easiest and most direct way to set a theme.
-    -   Force dark mode:
-        ```html
-        <script src=".../widget.js" data-color="dark"></script>
-        ```
-    -   Force light mode:
-        ```html
-        <script src=".../widget.js" data-color="light"></script>
-        ```
+You can force a specific theme by adding the `data-color` attribute to the script tag. This is the most direct way to set a theme.
 
-2.  **Host Page Theme Detection (Automatic):**
-    If `data-color` is not set, the widget attempts to detect the theme from your website's existing styles. It looks for:
-    -   **Dominant Viewport Color:** Analyzes the main background color of your site to decide if it's light or dark.
-    -   **CSS Variables:** Reads standard CSS variables like `--primary-color`, `--background`, `--text-color`, etc., to match your site's branding.
-    -   **Inferred Styles:** If variables aren't present, it infers colors from prominent elements like buttons and links.
+-   **Force Dark Mode:**
+    ```html
+    <script src=".../widget.js" data-color="dark"></script>
+    ```
+-   **Force Light Mode:**
+    ```html
+    <script src=".../widget.js" data-color="light"></script>
+    ```
 
-3.  **OS Preference (Fallback):**
-    If no theme can be determined from the methods above, the widget will fall back to the user's operating system preference (`prefers-color-scheme`).
+### 2. OS Preference (Automatic Fallback)
 
-### Customizing with CSS Variables
+If `data-color` is not set, the widget will automatically match the user's operating system preference (`prefers-color-scheme`).
 
-For the most seamless integration, define any of the following CSS variables in your site's stylesheet (e.g., in a `:root` block). The widget will automatically adopt these styles.
+### Advanced Customization (Via CSS Variables)
 
-| CSS Variable       | Description                                  |
-| ------------------ | -------------------------------------------- |
-| `--primary-color`  | Main accent color for buttons, user messages |
-| `--on-primary`     | Text color for elements with a primary background |
-| `--background`     | The main background of the chat window       |
-| `--text-color`     | Primary text color                           |
-| `--border-radius`  | Border radius for bubbles and inputs         |
+While the widget is designed to look great without any changes, you can override the core Glass-M3 variables by defining them on your own site's `:root`. The widget will automatically detect and apply them.
+
+| CSS Variable         | Description                                     |
+| -------------------- | ----------------------------------------------- |
+| `--primary-accent`   | The main brand color for gradients and highlights. |
+| `--secondary-accent` | The secondary brand color for gradients.        |
+| `--radius-interactive` | The border radius for buttons, inputs, etc.   |
+| `--font-family`      | The font used throughout the widget.            |
 
 **Example:**
 ```css
 :root {
-  --primary-color: #007bff;
-  --on-primary: #ffffff;
-  --background: #f8f9fa;
-  --text-color: #212529;
-  --border-radius: 12px;
+  --primary-accent: #007bff;
+  --secondary-accent: #6f42c1;
+  --radius-interactive: 8px;
+  --font-family: 'Georgia', serif;
 }
 ```
 
