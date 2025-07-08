@@ -79,23 +79,7 @@ Handles sending user messages to the AI and receiving responses.
     }
     ```
 
-### 4. Get Welcome Message
-
-Retrieves a language-aware, AI-generated welcome message for the chat widget.
-
-- **Method:** `GET`
-- **Path:** `/api/welcome-message`
-- **Query Parameters:**
-    - `lang` (string, optional): The desired language code for the welcome message (e.g., `en`, `id`). Defaults to `en` or browser-detected language if not provided.
-- **Response (Success - 200 OK):**
-    - `Content-Type: application/json`
-    ```json
-    {
-      "welcome": "Localized welcome message from the AI."
-    }
-    ```
-
-### 5. Get Cache Statistics (Debugging)
+### 4. Get Cache Statistics (Debugging)
 
 Provides statistics about the in-memory (LRU) cache.
 

@@ -33,13 +33,13 @@ export function generateWidgetJS(origin) {
         window.azzarChatCurrentLang = newLang;
         // Always reset chat with new language
         if (typeof loadConversationHistory === 'function') {
-          loadConversationHistory(true); // force reload welcome message
+          loadConversationHistory();
         }
       } else if (force) {
         // If no lang provided but force is true, re-detect and reload
         window.azzarChatCurrentLang = detectAzzarLang();
         if (typeof loadConversationHistory === 'function') {
-          loadConversationHistory(true);
+          loadConversationHistory();
         }
       }
     }
@@ -282,7 +282,7 @@ export function generateWidgetJS(origin) {
           bottom: 20px;
           right: 20px;
           font-family: 'Roboto', sans-serif;
-          z-index: 10000;
+          z-index: 9999;
           animation: fadeIn 0.5s ease-in-out;
         }
         .azzar-chat-button {
@@ -298,6 +298,7 @@ export function generateWidgetJS(origin) {
           box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 8px 24px \${accentColor}40;
           cursor: pointer;
           transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 1;
         }
         .azzar-chat-button::before, .azzar-chat-button::after {
           content: '';
@@ -343,6 +344,13 @@ export function generateWidgetJS(origin) {
           transform-origin: bottom right;
           transform: translateY(10px) scale(0.95);
           transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 2;
+        }
+        @media (min-width: 768px) {
+          .azzar-chat-window {
+            height: 100vh;
+            border-radius: 0;
+          }
         }
         .azzar-chat-window.open {
           display: block;

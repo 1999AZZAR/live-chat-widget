@@ -84,6 +84,13 @@ export function generateWidgetHTML(url) {
       overflow: hidden;
       color: ${colors.textColor};
     }
+    .chat-header {
+      background-color: ${colors.accentColor};
+      color: ${colors.onAccentColor};
+      padding: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
     .messages {
       flex: 1;
       overflow-y: auto;
@@ -274,8 +281,8 @@ export function generateWidgetHTML(url) {
 </head>
 <body>
   <div class="chat-container">
+    <div class="chat-header">Support</div>
     <div class="messages" id="messages">
-      <!-- Welcome message will be loaded here -->
     </div>
     <div class="typing-indicator" id="typing-indicator">
       <span class="dot"></span>
@@ -416,53 +423,22 @@ export function generateWidgetHTML(url) {
     const MAX_HISTORY = 10; // Keep last 5 exchanges (10 messages)
     
     // Load conversation history from localStorage if available
-    const loadConversationHistory = async (forceWelcome) => {
+    const loadConversationHistory = async () => {
       const savedHistory = localStorage.getItem('azzarChatHistory');
-      let lang = window.parent.azzarChatCurrentLang || 'en';
-      let welcomeMsg = '';
-      
-      // Fetch welcome message from API with an absolute URL
-      try {
-        const resp = await fetch(workerOrigin + '/api/welcome-message?lang=' + encodeURIComponent(lang));
-        if (resp.ok) {
-          const data = await resp.json();
-          welcomeMsg = data.welcome || '';
-        }
-      } catch (e) {
-        // ignore
-      }
-
-      if (!welcomeMsg) {
-        welcomeMsg = lang === 'id' ? 'Halo! Saya FREA, asisten AI Anda. Ada yang bisa saya bantu?' : 'Hi! I am FREA, your AI assistant. How can I help you?';
-      }
-
-      if (savedHistory && !forceWelcome) {
+      if (savedHistory) {
         try {
           conversationHistory = JSON.parse(savedHistory);
-          // Display saved messages (clear first to avoid duplicating welcome message)
           messagesContainer.innerHTML = '';
           conversationHistory.forEach(msg => {
             addMessageToUI(msg.role === 'user' ? 'user' : 'ai', msg.content);
           });
         } catch (e) {
           console.error('Error loading chat history:', e);
-          conversationHistory = [{
-            role: 'assistant',
-            content: welcomeMsg
-          }];
-          messagesContainer.innerHTML = '';
-          addMessageToUI('ai', welcomeMsg);
+          conversationHistory = [];
         }
       } else {
-        // Initialize with welcome message if no history exists or forceWelcome
-        conversationHistory = [{
-          role: 'assistant',
-          content: welcomeMsg
-        }];
-        messagesContainer.innerHTML = '';
-        addMessageToUI('ai', welcomeMsg);
+        conversationHistory = [];
       }
-      // Save the initial history
       saveConversationHistory();
     };
     

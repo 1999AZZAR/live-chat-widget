@@ -205,7 +205,6 @@ export function generateInstructionsHTML(baseUrl) {
         <li><b>Intelligent Theming:</b> Automatically adapts to your website's design.</li>
         <li><b>Personalized AI:</b> Easily customize the AI's persona and expertise.</li>
         <li><b>Live Wikipedia Integration:</b> Provides accurate, summarized answers to factual questions.</li>
-        <li><b>Language-Aware:</b> Detects your site's language for a localized welcome.</li>
         <li><b>Modern UI:</b> Clean, responsive, and mobile-friendly glassmorphic interface.</li>
         <li><b>Simple Integration:</b> Add to your site with a single script tag.</li>
       </ul>

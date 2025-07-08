@@ -7,7 +7,6 @@ A modern, embeddable AI chat widget powered by Cloudflare Workers and Llama 3.1.
 - **Personalized AI:** Easily customize the AI's persona and expertise by editing a single text file.
 - **Live Wikipedia Integration:** Provides accurate, summarized answers to factual questions.
 - **Intelligent Theming:** Automatically adapts to your website's design, with multiple ways to control the look and feel.
-- **Language-Aware:** Detects your site's language and generates a welcome message to match.
 - **Modern UI:** A clean, responsive, and mobile-friendly glassmorphic interface.
 - **Simple Integration:** Add the widget to your site with a single script tag.
 

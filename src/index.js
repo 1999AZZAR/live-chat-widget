@@ -3,6 +3,26 @@ import { generateWidgetJS } from './widget-generator.js';
 import { generateInstructionsHTML } from './demo-generator.js';
 import { generateWidgetHTML } from './iframe-generator.js';
 import { LRUCache, memoryCache } from './lru-handler.js';
+import systemInstruction from './systemInstruction.txt';
+import crawlFileContent from './crawl.txt';
+
+// --- Pre-cache persona files on startup ---
+const systemPromptKey = 'system:prompt';
+function getSystemPrompt() {
+  if (memoryCache.has(systemPromptKey)) {
+    return memoryCache.get(systemPromptKey);
+  }
+  const crawlLinks = crawlFileContent.split('\n').filter(line => line.trim().length > 0);
+  let enhancedPrompt = systemInstruction;
+  if (crawlLinks.length > 0) {
+    enhancedPrompt += '\n\nAdditional resources about me:\n' + crawlLinks.join('\n');
+  }
+  memoryCache.set(systemPromptKey, enhancedPrompt);
+  return enhancedPrompt;
+}
+// Immediately cache the prompt when the worker initializes
+getSystemPrompt();
+
 
 // Optional: Initialize a KV-based cache if available
 let kvCache = {
@@ -10,6 +30,7 @@ let kvCache = {
   async set(key, value) { return; },
   async has(key) { return false; }
 };
+
 
 // Function to query Wikipedia
 async function queryWikipedia(query) {
@@ -534,7 +555,7 @@ export default {
       if (url.pathname === '/api/chat' && request.method === 'POST') {
         const body = await request.json();
         const message = body.message;
-        const history = body.history || [];
+        let history = body.history || [];
         
         if (!message) {
           return new Response(JSON.stringify({ error: 'No message provided' }), {
@@ -545,26 +566,20 @@ export default {
             }
           });
         }
-        
-        // Load system prompt and crawl links in parallel for better performance
-        const [systemPrompt, crawlLinks] = await Promise.all([
-          getSystemPrompt(request.url, env),
-          getCrawlLinks(request.url, env)
-        ]);
-        
-        // Enhanced system prompt with crawl links if available
-        let enhancedPrompt = systemPrompt;
-        if (crawlLinks && crawlLinks.length > 0) {
-          enhancedPrompt += '\n\nAdditional resources about me:\n' + crawlLinks.join('\n');
+
+        // --- History Trimming ---
+        const MAX_HISTORY_LENGTH = 10; // Keep the last 5 exchanges (10 messages)
+        if (history.length > MAX_HISTORY_LENGTH) {
+          history = history.slice(history.length - MAX_HISTORY_LENGTH);
         }
         
-        // Prepare messages array for the AI
+        // --- Prepare messages array for the AI ---
         const messages = [
-          { role: 'system', content: enhancedPrompt }
+          { role: 'system', content: getSystemPrompt() } // Use cached prompt
         ];
-        
+
         // Add history messages if available
-        if (history && history.length > 0) {
+        if (history.length > 0) {
           messages.push(...history);
         }
         
@@ -577,90 +592,6 @@ export default {
         return new Response(JSON.stringify({ response: aiResponse }), {
           headers: { 
             'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        });
-      }
-      
-      // Handle welcome message API
-      if (url.pathname === '/api/welcome-message' && request.method === 'GET') {
-        // Get requested language from query param, fallback to 'en'
-        const langCode = url.searchParams.get('lang') || 'en';
-        
-        // Check cache first for welcome messages (they rarely change)
-        const welcomeCacheKey = `welcome:${langCode}`;
-        if (memoryCache.has(welcomeCacheKey)) {
-          return new Response(JSON.stringify({ 
-            welcome: memoryCache.get(welcomeCacheKey) 
-          }), {
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'max-age=86400', // Cache for a day
-              ...corsHeaders
-            }
-          });
-        }
-        
-        // Load systemInstruction.txt to get the base persona
-        const baseSystemPrompt = await getSystemPrompt(request.url, env);
-        
-        // Map language codes to full names
-        const langMap = {
-          en: 'English', id: 'Bahasa Indonesia', ms: 'Bahasa Melayu',
-          jv: 'Javanese', su: 'Sundanese', fr: 'French',
-          de: 'German', es: 'Spanish', it: 'Italian',
-          pt: 'Portuguese', ru: 'Russian', zh: 'Chinese',
-          ja: 'Japanese', ko: 'Korean', ar: 'Arabic',
-          hi: 'Hindi', th: 'Thai', vi: 'Vietnamese',
-          // ... other languages
-        };
-        const langName = langMap[langCode] || langCode;
-        
-        // Compose prompt for AI
-        const aiPromptForWelcome = `You are FREA, an AI assistant. Generate a short, friendly welcome message for a chat widget, introducing yourself as FREA. The message should be in ${langName}. Only output the message, no explanations or extra text. Use the persona defined in the system instructions.`;
-        
-        let welcome = '';
-        try {
-          if (env.AI) {
-            const aiResp = await env.AI.run('@cf/meta/llama-3.1-70b-instruct', {
-              messages: [
-                // Provide the full system prompt which defines FREA
-                { role: 'system', content: baseSystemPrompt }, 
-                { role: 'user', content: aiPromptForWelcome }
-              ],
-              max_tokens: 100
-            });
-            
-            // Extract welcome message from response
-            if (typeof aiResp === 'string') {
-              welcome = aiResp.trim();
-            } else if (aiResp && typeof aiResp.response === 'string') {
-              welcome = aiResp.response.trim();
-            } else if (aiResp && typeof aiResp.text === 'string') {
-              welcome = aiResp.text.trim();
-            } else if (aiResp && typeof aiResp.content === 'string') {
-              welcome = aiResp.content.trim();
-            }
-          }
-        } catch (e) {
-          console.error('Error generating AI welcome message:', e);
-          // ignore, fallback below
-        }
-        
-        if (!welcome) {
-          // Fallback messages updated to use FREA
-          welcome = langCode === 'id' ? 
-            'Halo! Saya FREA, asisten AI Anda. Ada yang bisa saya bantu?' : 
-            'Hi! I am FREA, your AI assistant. How can I help you?';
-        }
-        
-        // Cache the welcome message
-        memoryCache.set(welcomeCacheKey, welcome);
-        
-        return new Response(JSON.stringify({ welcome }), {
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'max-age=86400', // Cache for a day
             ...corsHeaders
           }
         });
@@ -703,141 +634,5 @@ export default {
   }
 }
 
-// Generic function to fetch text files with multiple fallback options
-async function fetchTextFile(fileName, baseUrl, env, defaultContent = '') {
-  // Create a cache key for the file
-  const cacheKey = `file:${fileName}:${baseUrl}`;
-  
-  // Check memory cache first for the fastest response
-  if (memoryCache.has(cacheKey)) {
-    console.log(`Found ${fileName} in memory cache`);
-    return memoryCache.get(cacheKey);
-  }
-  
-  let content = null;
-  
-  // Method 1: For systemInstruction.txt, check SYSTEM_PROMPT KV first (most likely location)
-  if (fileName === 'systemInstruction.txt' && env?.SYSTEM_PROMPT) {
-    try {
-      content = await env.SYSTEM_PROMPT.get('systemInstruction.txt');
-      if (content) {
-        console.log(`Loaded ${fileName} from SYSTEM_PROMPT KV`);
-        memoryCache.set(cacheKey, content);
-        return content;
-      }
-    } catch (e) {
-      console.log(`Error accessing ${fileName} from KV:`, e);
-    }
-  }
-  
-  // Method 2: Try direct fetch from same origin (most efficient network path)
-  try {
-    const directUrl = `${baseUrl}/${fileName}`;
-    const response = await fetch(directUrl, { 
-      headers: { 'Accept': 'text/plain' },
-      cf: { cacheTtl: 3600 } // Use Cloudflare's cache when possible
-    });
-    
-    if (response.ok) {
-      content = await response.text();
-      if (content) {
-        console.log(`Loaded ${fileName} via direct fetch`);
-        memoryCache.set(cacheKey, content);
-        return content;
-      }
-    }
-  } catch (e) {
-    // Silent fail, try next method
-  }
-  
-  // Method 3: Try using R2/ASSETS binding if available
-  if (env?.ASSETS) {
-    try {
-      const asset = await env.ASSETS.get(fileName);
-      if (asset) {
-        content = await asset.text();
-        if (content) {
-          console.log(`Loaded ${fileName} from ASSETS binding`);
-          memoryCache.set(cacheKey, content);
-          return content;
-        }
-      }
-    } catch (e) {
-      // Silent fail, try next method
-    }
-  }
-  
-  // Method 4: Try absolute URL with CORS headers as last resort
-  try {
-    const absoluteUrl = new URL(fileName, baseUrl).toString();
-    const response = await fetch(absoluteUrl, { 
-      headers: { 'Accept': 'text/plain', 'X-Requested-With': 'XMLHttpRequest' }
-    });
-    
-    if (response.ok) {
-      content = await response.text();
-      if (content) {
-        console.log(`Loaded ${fileName} via CORS fetch`);
-        memoryCache.set(cacheKey, content);
-        return content;
-      }
-    }
-  } catch (e) {
-    // Silent fail, use fallbacks
-  }
-  
-  // Method 5: Use embedded content as a fallback
-  if (fileName === 'systemInstruction.txt') {
-    console.log('Using embedded systemInstruction.txt content');
-    content = `You are FREA, an assistant based on Azzar persona, a helpful AI assistant who specializes in web development, microcontrollers, and IoT technology. You\'re created by a freelance engineer from Yogyakarta, Indonesia. You\'re friendly, knowledgeable, and always willing to help with technical questions.`;
-  } else if (fileName === 'crawl.txt') {
-    console.log('Using embedded crawl.txt content');
-    content = `https://github.com/1999AZZAR
-https://x.com/siapa_hayosiapa
-https://www.linkedin.com/in/azzar-budiyanto/
-https://medium.com/@azzar_budiyanto
-https://codepen.io/azzar
-https://www.instagram.com/azzar_budiyanto/
-https://azzar.netlify.app/porto`;
-  } else {
-    content = defaultContent;
-  }
-  
-  // Cache even the fallback content to avoid repeated lookups
-  if (content) {
-    memoryCache.set(cacheKey, content);
-  }
-  
-  return content || defaultContent;
-}
+ 
 
-// Function to get system prompt from systemInstruction.txt
-async function getSystemPrompt(requestUrl, env) {
-  const currentUrl = new URL(typeof requestUrl === 'string' ? requestUrl : requestUrl.toString());
-  const baseUrl = `${currentUrl.protocol}//${currentUrl.host}`;
-  
-  // Default system prompt if all methods fail
-  const defaultPrompt = "You are FREA, an assistant based on Azzar persona, a helpful AI assistant who specializes in web development, microcontrollers, and IoT technology. You\'re created by a freelance engineer from Yogyakarta, Indonesia. You\'re friendly, knowledgeable, and always willing to help with technical questions.";
-  
-  return await fetchTextFile('systemInstruction.txt', baseUrl, env, defaultPrompt);
-}
-
-// Function to get links from crawl.txt
-async function getCrawlLinks(requestUrl, env) {
-  const currentUrl = new URL(typeof requestUrl === 'string' ? requestUrl : requestUrl.toString());
-  const baseUrl = `${currentUrl.protocol}//${currentUrl.host}`;
-  
-  // Get crawl.txt content
-  const content = await fetchTextFile('crawl.txt', baseUrl, env, '');
-  
-  // If we got content, parse it into links
-  if (content) {
-    // Split by newlines, trim each line, and filter out empty lines
-    return content.split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-  }
-  
-  // Default is an empty array if no links were found
-  return [];
-}
