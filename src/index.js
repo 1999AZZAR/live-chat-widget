@@ -115,23 +115,11 @@ function shouldUseWikipedia(message) {
   return informationPatterns.some(pattern => pattern.test(message));
 }
 
-// Function to count tokens approximately (improved version)
+// A more conservative and reliable token counting function based on character length.
 function approximateTokenCount(text) {
   if (!text) return 0;
-  
-  // More accurate approximation:
-  // - Average English word is ~4.7 characters
-  // - Words are typically 1-2 tokens
-  // - Special characters and numbers count as separate tokens
-  
-  // Count words (approximate tokens from words)
-  const wordCount = text.split(/\s+/).filter(Boolean).length;
-  
-  // Count special tokens (numbers, symbols, etc.)
-  const specialChars = (text.match(/[^a-zA-Z\s]/g) || []).length;
-  
-  // Final approximation
-  return Math.ceil((wordCount * 1.3) + (specialChars * 0.5));
+  // Heuristic: 1 token is roughly 3.5 characters. Using a lower divisor is more conservative.
+  return Math.ceil(text.length / 3.5);
 }
 
 // Function to clean up excessive blank lines in text
@@ -169,6 +157,20 @@ function cleanupFormatting(text) {
   return cleanedText;
 }
 
+// Helper function to calculate Jaccard Similarity between two strings
+function jaccardSimilarity(s1, s2) {
+  const set1 = new Set(s1.toLowerCase().split(/\W+/).filter(word => word.length > 0));
+  const set2 = new Set(s2.toLowerCase().split(/\W+/).filter(word => word.length > 0));
+  
+  if (set1.size === 0 && set2.size === 0) return 1.0; // Both empty, considered identical
+  if (set1.size === 0 || set2.size === 0) return 0.0; // One empty, one not
+  
+  const intersection = new Set([...set1].filter(x => set2.has(x)));
+  const union = new Set([...set1, ...set2]);
+  
+  return intersection.size / union.size;
+}
+
 // Enhanced deduplication function - this is the main improvement to fix duplicate responses
 function deduplicateResponse(text) {
   if (!text) return text;
@@ -196,32 +198,40 @@ function deduplicateResponse(text) {
     }
   }
   
-  // Step 2: More general sentence-level deduplication
-  // This helps with cases where sentences repeat in different sections
+  // Step 2: More general sentence-level deduplication using Jaccard Similarity
+  // This helps with cases where sentences are very similar but not identical
+  const SIMILARITY_THRESHOLD = 0.8; // Adjust this value (0.0 - 1.0) as needed
   const sentences = text.match(/[^.!?]+[.!?]+\s*/g);
   if (sentences && sentences.length > 3) {
     const uniqueSentences = [];
     const seenSentences = new Set();
     
     for (const sentence of sentences) {
-      // Normalize sentence - strip whitespace, lowercase
-      const normalized = sentence.trim().toLowerCase();
-      // Skip very short sentences or common phrases
-      if (normalized.length < 10) {
+      const trimmedSentence = sentence.trim();
+      if (trimmedSentence.length < 10) { // Skip very short sentences
         uniqueSentences.push(sentence);
         continue;
       }
-      
-      // Check if we've seen this sentence before
-      if (!seenSentences.has(normalized)) {
+
+      let isDuplicate = false;
+      for (const seen of seenSentences) {
+        if (jaccardSimilarity(trimmedSentence, seen) >= SIMILARITY_THRESHOLD) {
+          isDuplicate = true;
+          break;
+        }
+      }
+
+      if (!isDuplicate) {
         uniqueSentences.push(sentence);
-        seenSentences.add(normalized);
+        seenSentences.add(trimmedSentence);
+      } else {
+        console.log(`Deduplication: Found similar sentence, removing: "${trimmedSentence.substring(0, 50)}..."`);
       }
     }
     
     // If we removed any duplicates
     if (uniqueSentences.length < sentences.length) {
-      console.log(`Deduplication: Removed ${sentences.length - uniqueSentences.length} duplicate sentences`);
+      console.log(`Deduplication: Removed ${sentences.length - uniqueSentences.length} duplicate or highly similar sentences`);
       return uniqueSentences.join('');
     }
   }
@@ -354,9 +364,10 @@ async function sendToAI(messages, env) {
     
     // Set maximum output tokens - leaving space based on input tokens
     // Model context limit is about 8k-16k tokens depending on the specific model
-    // Let's target staying within 6.5k total tokens for safety
-    const MAX_CONTEXT_TOKENS = 6500;
-    const MAX_OUTPUT_TOKENS = Math.max(250, MAX_CONTEXT_TOKENS - inputTokens - 150); 
+    // Let's target staying within a safer limit, e.g., 6000 tokens total.
+    const MAX_CONTEXT_TOKENS = 6000;
+    // Increase the safety buffer from 150 to 250 tokens.
+    const MAX_OUTPUT_TOKENS = Math.max(250, MAX_CONTEXT_TOKENS - inputTokens - 250); 
     
     console.log(`Approximate input tokens: ${inputTokens}, setting max output tokens: ${MAX_OUTPUT_TOKENS}`);
     
@@ -372,7 +383,8 @@ async function sendToAI(messages, env) {
       messages: messages,
       max_tokens: MAX_OUTPUT_TOKENS,
       temperature: 0.7, // Add some temperature for more natural responses
-      top_p: 0.95      // Adjust top_p for more focused responses
+      top_p: 0.95,      // Adjust top_p for more focused responses
+      stop_sequences: ['\\n\\n', ']', '```'] // Stop generation at these sequences
     });
     
     console.log('Raw AI response received');

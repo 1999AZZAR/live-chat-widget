@@ -348,8 +348,8 @@ export function generateWidgetJS(origin) {
         }
         @media (min-width: 768px) {
           .azzar-chat-window {
-            height: 100vh;
-            border-radius: 0;
+            height: 85vh;
+            border-radius: 15px;
           }
         }
         .azzar-chat-window.open {

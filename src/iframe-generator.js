@@ -536,8 +536,12 @@ export function generateWidgetHTML(url) {
     clearButton.addEventListener('click', () => {
       // Clear UI
       messagesContainer.innerHTML = '';
-      // Reload conversation history, which includes fetching a new welcome message
-      loadConversationHistory(true);
+      // Clear conversation history
+      conversationHistory = [];
+      // Save empty history to localStorage
+      saveConversationHistory();
+      // Optionally, add a welcome message back if desired, but not by reloading history
+      // For now, just clear it.
     });
     
     // Load conversation history on page load
