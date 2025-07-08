@@ -4,19 +4,30 @@ A modern, embeddable AI chat widget powered by Cloudflare Workers and Llama 3.1.
 
 ## Features
 
-- **Personalized AI:** Easily customize the AI's persona and expertise by editing a single text file.
-- **Live Wikipedia Integration:** Provides accurate, summarized answers to factual questions.
-- **Intelligent Theming:** Automatically adapts to your website's design, with multiple ways to control the look and feel.
+- **Personalized AI:** Easily customize the AI's persona, knowledge, and tone by editing a single text file (`src/systemInstruction.txt`).
+- **Intelligent Wikipedia Integration:** Provides accurate, summarized answers to factual questions by dynamically querying Wikipedia. The AI intelligently decides when to use Wikipedia and when to respond from its persona.
+- **Smart Response Deduplication:** AI responses are processed to remove repetitive phrases and ensure concise, unique output.
+- **Intelligent Theming:** Automatically adapts to your website's design, with multiple ways to control the look and feel, including automatic detection of dominant colors and CSS variables.
 - **Modern UI:** A clean, responsive, and mobile-friendly glassmorphic interface.
+- **Robust Rate Limiting:** Protects the API from abuse with intelligent rate limiting based on client IP.
 - **Simple Integration:** Add the widget to your site with a single script tag.
 
 ## Installation
 
-Add the following script tag to your website's HTML. The widget will automatically appear and adapt to your site's theme.
+To use the widget, you first need to deploy the Cloudflare Worker. Make sure you have `wrangler` installed and configured.
 
-```html
-<script src="https://<your-worker-url>/widget.js"></script>
-```
+1.  **Deploy the Worker:**
+    ```bash
+    wrangler deploy
+    ```
+    This will deploy your worker and provide you with a URL (e.g., `https://your-worker-name.your-account.workers.dev`).
+
+2.  **Embed the Widget:**
+    Add the following script tag to your website's HTML, replacing `<your-worker-url>` with the URL obtained from the deployment step. The widget will automatically appear and adapt to your site's theme.
+
+    ```html
+    <script src="https://<your-worker-url>/widget.js"></script>
+    ```
 
 ## Theming & Customization
 
@@ -55,6 +66,7 @@ For the most seamless integration, define any of the following CSS variables in 
 | `--background`     | The main background of the chat window       |
 | `--text-color`     | Primary text color                           |
 | `--border-radius`  | Border radius for bubbles and inputs         |
+| `--font-family`    | Font family for all widget text              |
 
 **Example:**
 ```css
@@ -86,6 +98,7 @@ The widget exposes several endpoints for programmatic interaction. For detailed 
 -   `GET /widget-iframe`: Serves the content for the widget's iframe.
 -   `POST /api/chat`: The main chat endpoint.
 -   `GET /api/welcome-message`: Retrieves the initial AI-generated greeting.
+-   `GET /api/cache-stats`: Provides statistics about the in-memory (LRU) cache.
 
 ## Updating the AI Persona
 

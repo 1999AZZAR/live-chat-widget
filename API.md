@@ -1,6 +1,6 @@
 # Azzar AI Chat Widget API Reference
 
-This document provides details about the API endpoints available for the Azzar AI Chat Widget.
+This document provides details about the API endpoints available for the Azzar AI Chat Widget, which is powered by Cloudflare Workers.
 
 ## Common Headers
 
@@ -47,7 +47,7 @@ Serves the HTML content for the chat widget's iframe. This is typically loaded b
 
 ### 3. Chat Interaction
 
-Handles sending user messages to the AI and receiving responses.
+Handles sending user messages to the AI and receiving responses. This endpoint also intelligently integrates Wikipedia information and applies rate limiting.
 
 - **Method:** `POST`
 - **Path:** `/api/chat`
@@ -63,7 +63,10 @@ Handles sending user messages to the AI and receiving responses.
     }
     ```
     - `message` (string, required): The current message from the user.
-    - `history` (array, optional): An array of previous messages in the conversation, alternating between "user" and "assistant" roles.
+    - `history` (array, optional): An array of previous messages in the conversation, alternating between "user" and "assistant" roles. The history is trimmed to the last 10 messages (5 exchanges) to manage context length.
+- **Behavior:**
+    - **Wikipedia Integration:** If the `message` contains patterns suggesting a factual query (e.g., "what is", "who is"), the system may query Wikipedia and inject relevant information into the AI's context.
+    - **Rate Limiting:** This endpoint is subject to rate limiting. See the [Rate Limiting](#rate-limiting) section for details.
 - **Response (Success - 200 OK):**
     - `Content-Type: application/json`
     ```json
@@ -78,6 +81,7 @@ Handles sending user messages to the AI and receiving responses.
       "error": "Description of the error."
     }
     ```
+    - A `429 Too Many Requests` status will be returned if the rate limit is exceeded, with a `Retry-After` header indicating when to retry.
 
 ### 4. Get Cache Statistics (Debugging)
 
@@ -105,4 +109,15 @@ Provides statistics about the in-memory (LRU) cache.
 
 ---
 
-*This API documentation is subject to change. Please refer to the source code for the most up-to-date details.* 
+*This API documentation is subject to change. Please refer to the source code for the most up-to-date details.*
+
+---
+
+## Rate Limiting
+
+To ensure fair usage and prevent abuse, the `/api/chat` endpoint is subject to rate limiting.
+
+- **Mechanism:** Rate limiting is applied based on the client's IP address (extracted from `CF-Connecting-IP` header).
+- **Limit:** Each unique IP address is allowed a maximum of **100 requests per minute**.
+- **Response on Exceeding Limit:** If the rate limit is exceeded, the API will return a `429 Too Many Requests` HTTP status code with a `Content-Type: application/json` body containing an error message, and a `Retry-After` header indicating the number of seconds to wait before making another request.
+- **Implementation:** The rate limiting counter is stored in a Cloudflare KV namespace (`RATE_LIMITER_KV`) for persistence across Worker instances. 
