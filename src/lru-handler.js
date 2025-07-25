@@ -1,6 +1,13 @@
 // LRU Cache implementation
 import crypto from 'crypto';
 
+// Simple synchronous hash function (FNV-1a variant)
+function simpleHash(str) {
+  let hash = 5381, i = str.length;
+  while(i) hash = (hash * 33) ^ str.charCodeAt(--i);
+  return (hash >>> 0).toString(16);
+}
+
 class LRUCache {
   constructor(options = {}) {
     this.calculateItemWeight = options.calculateItemWeight || null;
@@ -42,8 +49,8 @@ class LRUCache {
       keyParts.push(`${msg.role}:${content}`);
     }
     const rawKey = keyParts.join('|');
-    // Hash for compactness
-    const hash = crypto.createHash('sha256').update(rawKey).digest('hex');
+    // Use simpleHash for compatibility
+    const hash = simpleHash(rawKey);
     return hash;
   }
 
@@ -298,9 +305,8 @@ const memoryCache = new LRUCache({
   ttl: 3600 // 1 hour TTL
 });
 
+// Only export once at the end
 export { LRUCache, memoryCache };
-// Export a function to get cache stats
 export function getMemoryCacheStats() {
   return memoryCache.getStats();
 } 
-export { LRUCache, memoryCache }; 
