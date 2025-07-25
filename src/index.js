@@ -2,7 +2,7 @@
 import { generateWidgetJS } from './widget-generator.js';
 import { generateInstructionsHTML } from './demo-generator.js';
 import { generateWidgetHTML } from './iframe-generator.js';
-import { LRUCache, memoryCache } from './lru-handler.js';
+import { LRUCache, memoryCache, getMemoryCacheStats } from './lru-handler.js';
 import systemInstruction from './systemInstruction.txt';
 import crawlFileContent from './crawl.txt';
 
@@ -611,12 +611,7 @@ export default {
       
       // Handle cache stats request (for debugging)
       if (url.pathname === '/api/cache-stats' && request.method === 'GET') {
-        const stats = {
-          memoryCache: {
-            size: memoryCache.cache.size,
-            maxSize: memoryCache.maxSize,
-          }
-        };
+        const stats = getMemoryCacheStats();
         return new Response(JSON.stringify(stats), {
           headers: { 
             'Content-Type': 'application/json',

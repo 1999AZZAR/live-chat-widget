@@ -1,4 +1,6 @@
 // LRU Cache implementation
+import crypto from 'crypto';
+
 class LRUCache {
   constructor(options = {}) {
     this.calculateItemWeight = options.calculateItemWeight || null;
@@ -13,6 +15,10 @@ class LRUCache {
       this.maxWeight = Infinity; // In item count mode, total weight is not limited
     }
 
+    this.ttl = options.ttl || 0; // TTL in seconds, 0 = no expiration
+    this.hits = 0;
+    this.misses = 0;
+
     this.cache = new Map(); // Stores key -> { value, weight, next, prev }
     this.currentWeight = 0;
     
@@ -21,27 +27,38 @@ class LRUCache {
     this.tail = null; // Least recently used
   }
 
-  // Generate a cache key from messages - optimized for speed
-  static generateKey(messages) {
-    // For small message counts, this is faster than slice + map
+  // Generate a cache key from messages - robust version
+  static generateKey(messages, options = {}) {
+    // Normalize, trim, lowercase, and hash
     const len = messages.length;
     if (len === 0) return '';
-    
-    // Create a stable key, only considering the last 3 messages
     let keyParts = [];
     const startIndex = Math.max(0, len - 3);
-    
     for (let i = startIndex; i < len; i++) {
       const msg = messages[i];
-      keyParts.push(`${msg.role}:${msg.content}`);
+      // Normalize: trim, lowercase, collapse whitespace
+      let content = msg.content || '';
+      content = content.replace(/\s+/g, ' ').trim().toLowerCase();
+      keyParts.push(`${msg.role}:${content}`);
     }
-    
-    return keyParts.join('|');
+    const rawKey = keyParts.join('|');
+    // Hash for compactness
+    const hash = crypto.createHash('sha256').update(rawKey).digest('hex');
+    return hash;
   }
 
-  // Check if a key exists and is valid
+  // Check if a key exists and is valid (not expired)
   has(key) {
-    return this.cache.has(key);
+    const node = this.cache.get(key);
+    if (!node) return false;
+    if (this.ttl > 0 && node.timestamp) {
+      const now = Date.now();
+      if (now - node.timestamp > this.ttl * 1000) {
+        this._removeItem(key);
+        return false;
+      }
+    }
+    return true;
   }
 
   // Move a node to the front of the list (most recently used)
@@ -105,11 +122,20 @@ class LRUCache {
   // Get a value from cache
   get(key) {
     const node = this.cache.get(key);
-    if (!node) return null;
-    
-    // Move to front of LRU list
+    if (!node) {
+      this.misses++;
+      return null;
+    }
+    if (this.ttl > 0 && node.timestamp) {
+      const now = Date.now();
+      if (now - node.timestamp > this.ttl * 1000) {
+        this._removeItem(key);
+        this.misses++;
+        return null;
+      }
+    }
+    this.hits++;
     this._moveToFront(node);
-    
     return node.value;
   }
 
@@ -147,7 +173,7 @@ class LRUCache {
     }
     
     // Create new cache node
-    const newNode = { key, value, weight: itemWeight };
+    const newNode = { key, value, weight: itemWeight, timestamp: this.ttl > 0 ? Date.now() : undefined };
     
     // Make space if needed (different strategy for weighted vs. count modes)
     if (this.isWeightedMode) {
@@ -240,24 +266,41 @@ class LRUCache {
     this.tail = null;
     this.currentWeight = 0;
   }
+
+  getStats() {
+    return {
+      size: this.cache.size,
+      maxSize: this.maxSize,
+      maxWeight: this.maxWeight,
+      currentWeight: this.currentWeight,
+      hits: this.hits,
+      misses: this.misses,
+      ttl: this.ttl
+    };
+  }
 }
 
-// Create a global memory cache instance using weighted strategy
+// Create a global memory cache instance using weighted strategy and TTL (e.g., 1 hour)
 const memoryCache = new LRUCache({
-  maxWeight: 10 * 1024 * 1024, // 10MB total character "weight" for strings
+  maxWeight: 10 * 1024 * 1024, // 10MB
   calculateItemWeight: (value) => {
     if (typeof value === 'string') {
-      return value.length; // Weight is the string length
+      return value.length;
     } else if (value && typeof value === 'object') {
-      // Estimate object size more accurately
       try {
         return JSON.stringify(value).length;
       } catch (e) {
-        return 1024; // Default size if can't stringify
+        return 1024;
       }
     }
-    return 1; // Default weight for non-string items
-  }
+    return 1;
+  },
+  ttl: 3600 // 1 hour TTL
 });
 
+export { LRUCache, memoryCache };
+// Export a function to get cache stats
+export function getMemoryCacheStats() {
+  return memoryCache.getStats();
+} 
 export { LRUCache, memoryCache }; 
