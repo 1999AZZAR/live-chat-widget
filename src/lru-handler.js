@@ -1,5 +1,4 @@
 // LRU Cache implementation
-import crypto from 'crypto';
 
 // Simple synchronous hash function (FNV-1a variant)
 function simpleHash(str) {
