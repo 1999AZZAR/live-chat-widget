@@ -109,6 +109,12 @@ export function generateWidgetJS(origin) {
           return 0.2126 * r + 0.7152 * g + 0.0722 * b;
         }
 
+        // Helper: pick readable text color based on background luminance
+        function getContrastingTextColor(backgroundColor) {
+          const luminance = getLuminance(backgroundColor);
+          return luminance > 0.55 ? '#000000' : '#ffffff';
+        }
+
         let detectedTheme = {
           // Priority 1: Explicit CSS variables
           'primary-color': rootStyle.getPropertyValue('--primary-color').trim(),
@@ -169,7 +175,39 @@ export function generateWidgetJS(origin) {
           }
         }
         
-        const mainBgColor = getDominantViewportColor();
+        // Determine page background color by inspecting large visible elements
+        function getPageBackgroundColor() {
+          const bodyBg = bodyStyle.backgroundColor;
+          if (bodyBg && bodyBg !== 'rgba(0, 0, 0, 0)' && bodyBg !== 'transparent') {
+            return bodyBg;
+          }
+          let candidates = Array.from(document.querySelectorAll('main, #app, #root, #__next, body, html'));
+          candidates = candidates.concat(Array.from(document.querySelectorAll('section, header, footer, div')).slice(0, 60));
+          let bestColor = null;
+          let bestArea = 0;
+          for (const el of candidates) {
+            const style = getComputedStyle(el);
+            const bg = style.backgroundColor;
+            if (!bg || bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') continue;
+            const rect = el.getBoundingClientRect();
+            const area = Math.max(0, rect.width) * Math.max(0, rect.height);
+            if (area > bestArea) {
+              bestArea = area;
+              bestColor = bg;
+            }
+          }
+          return bestColor || '#ffffff';
+        }
+
+        // Tailwind dark mode signal
+        const isTailwindDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
+        if (isTailwindDark) {
+          detectedTheme['detected-theme-mode'] = 'dark';
+        }
+        // DaisyUI theme name (informational)
+        const daisyTheme = document.documentElement.getAttribute('data-theme') || document.body.getAttribute('data-theme') || null;
+
+        const mainBgColor = getPageBackgroundColor();
         if (mainBgColor) {
             if (!detectedTheme['background']) detectedTheme['background'] = mainBgColor;
             const luminance = getLuminance(mainBgColor);
@@ -182,46 +220,85 @@ export function generateWidgetJS(origin) {
             detectedTheme['text-color'] = getComputedStyle(mainContentElem).color;
         }
 
-        // Infer accent colors from a prominent button or link, with Tailwind CSS support
+        // Infer accent colors with Tailwind/DaisyUI support
         if (!detectedTheme['primary-color']) {
-          let primaryButton = null;
-          const allButtons = Array.from(document.querySelectorAll('button'));
+          let primaryElement = null;
 
-          // Tailwind-specific detection: find a button with a non-neutral 'bg-' class
-          const tailwindButtons = allButtons.filter(btn => {
-            const classList = Array.from(btn.classList);
-            const hasBgClass = classList.some(c => c.startsWith('bg-') && !c.includes('transparent'));
-            const isNeutral = classList.some(c => c.match(/bg-(gray|zinc|neutral|stone|slate|white|black)/));
-            return hasBgClass && !isNeutral;
-          });
+          // DaisyUI probe: hidden btn btn-primary
+          try {
+            const probe = document.createElement('button');
+            probe.className = 'btn btn-primary';
+            probe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none;';
+            document.body.appendChild(probe);
+            const probeStyle = getComputedStyle(probe);
+            const bg = probeStyle.backgroundColor;
+            const fg = probeStyle.color;
+            document.body.removeChild(probe);
+            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+              detectedTheme['primary-color'] = bg;
+              detectedTheme['on-primary'] = fg || getContrastingTextColor(bg);
+            }
+          } catch (_) {}
 
-          if (tailwindButtons.length > 0) {
-            primaryButton = tailwindButtons[0]; // Use the first likely candidate
+          // Tailwind: non-neutral bg-*
+          if (!detectedTheme['primary-color']) {
+            const allButtons = Array.from(document.querySelectorAll('button, a, .btn, [class*="btn-"], input[type="submit"], .badge, .chip'));
+            const tailwindCandidates = allButtons.filter(el => {
+              const classList = Array.from(el.classList || []);
+              const hasBgClass = classList.some(c => c.startsWith('bg-') && !c.includes('transparent'));
+              const isNeutral = classList.some(c => c.match(/bg-(gray|zinc|neutral|stone|slate|white|black)(-|$)/));
+              return hasBgClass && !isNeutral;
+            });
+            if (tailwindCandidates.length > 0) {
+              primaryElement = tailwindCandidates[0];
+            }
           }
 
-          // Fallback to generic button detection if no Tailwind button is found
-          if (!primaryButton) {
-            primaryButton = document.querySelector('button[class*="primary"], button[class*="btn-primary"], button:not([style*="background: transparent"])');
+          // Generic primary markers
+          if (!primaryElement) {
+            primaryElement = document.querySelector('button[class*="primary"], [class*="btn-primary"], [class~="primary"], button');
           }
 
-          if (primaryButton) {
-            const btnStyle = getComputedStyle(primaryButton);
-            detectedTheme['primary-color'] = btnStyle.backgroundColor;
-            detectedTheme['on-primary'] = btnStyle.color;
-          } else {
-            // Last resort: check a link's color
+          if (primaryElement && !detectedTheme['primary-color']) {
+            const style = getComputedStyle(primaryElement);
+            const bg = style.backgroundColor;
+            const fg = style.color;
+            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+              detectedTheme['primary-color'] = bg;
+              detectedTheme['on-primary'] = fg || getContrastingTextColor(bg);
+            }
+          }
+
+          // Tailwind text-* non-neutral as fallback
+          if (!detectedTheme['primary-color']) {
+            const coloredText = document.querySelector('[class*="text-"]:not([class*="text-gray"]):not([class*="text-zinc"]):not([class*="text-neutral"]):not([class*="text-stone"]):not([class*="text-slate"])');
+            if (coloredText) {
+              const c = getComputedStyle(coloredText).color;
+              if (c && c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') {
+                detectedTheme['primary-color'] = c;
+                detectedTheme['on-primary'] = getContrastingTextColor(c);
+              }
+            }
+          }
+
+          // Last resort: link color
+          if (!detectedTheme['primary-color']) {
             const link = document.querySelector('a');
             if (link) {
-                detectedTheme['primary-color'] = getComputedStyle(link).color;
+              const c = getComputedStyle(link).color;
+              if (c && c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') {
+                detectedTheme['primary-color'] = c;
+                detectedTheme['on-primary'] = getContrastingTextColor(c);
+              }
             }
           }
         }
         
-        // Infer border-radius from a button
+        // Infer border-radius from Tailwind rounded-* or a button
         if (!detectedTheme['border-radius']) {
-            const sampleButton = document.querySelector('button, input[type="submit"]');
-            if (sampleButton) {
-                detectedTheme['border-radius'] = getComputedStyle(sampleButton).borderRadius;
+            const sample = document.querySelector('[class*="rounded"], button, input[type="submit"]');
+            if (sample) {
+                detectedTheme['border-radius'] = getComputedStyle(sample).borderRadius;
             }
         }
 
@@ -254,6 +331,8 @@ export function generateWidgetJS(origin) {
       for (const [key, value] of Object.entries(hostTheme)) {
         queryParams.set(key, value);
       }
+      // Ensure latest iframe loads by adding a cache-busting parameter
+      queryParams.set('v', String(Date.now()));
       const iframeSrc = \`\${workerOrigin}/widget-iframe?\${queryParams.toString()}\`;
       
       const accentColor = hostTheme['primary-color'] || (finalTheme === 'dark' ? '#BB86FC' : '#6200EE');

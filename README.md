@@ -29,6 +29,87 @@ To use the widget, you first need to deploy the Cloudflare Worker. Make sure you
     <script src="https://<your-worker-url>/widget.js"></script>
     ```
 
+## Run locally
+
+You can run the worker locally with Wrangler and test the widget on a simple HTML page.
+
+1. Start the dev server:
+
+   ```bash
+   # Using npm scripts (recommended)
+   npm install
+   npm run dev
+
+   # Or explicitly run fully local (no Cloudflare edge services)
+   npm run dev -- --local
+   ```
+
+   Or use npx directly (no local install required):
+
+   ```bash
+   npx wrangler dev            # remote dev (recommended for AI binding)
+   npx wrangler dev --local    # local-only runtime
+   ```
+
+   Notes:
+   - Remote dev (default without `--local`) is recommended because it supports Cloudflare AI and KV bindings defined in `wrangler.toml`. The chat will work end-to-end.
+   - Local mode (`--local`) is great for UI/theming testing, but AI responses may not work if the AI binding isn't available locally.
+
+   Wrangler will print a local URL like `http://127.0.0.1:8787`.
+
+2. Create a minimal test page (e.g., `local-test.html`) and point the script to your local worker URL:
+
+   ```html
+   <!doctype html>
+   <html>
+   <head>
+     <meta charset="utf-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1" />
+     <title>Widget Local Test</title>
+     <!-- Optional Tailwind CDN to try Tailwind/DaisyUI detection -->
+     <script src="https://cdn.tailwindcss.com"></script>
+   </head>
+   <body class="min-h-screen bg-gray-50 p-8">
+     <h1 class="text-2xl font-bold mb-4">Azzar AI Chat Widget - Local Test</h1>
+     <p class="mb-8">This page loads the widget from your local Cloudflare Worker.</p>
+
+     <!-- Load widget from local worker; add data-color to force theme if needed -->
+     <script src="http://127.0.0.1:8787/widget.js" data-color="auto"></script>
+   </body>
+   </html>
+   ```
+
+3. Open the file in your browser (double-click or serve it with any static server). The widget should appear in the bottom-right and talk to the local worker. Try toggling Tailwind classes (e.g., add `class="dark"` to `html`) to see color/theme detection in action.
+
+4. Test the API directly (optional):
+
+   ```bash
+   curl -X POST http://127.0.0.1:8787/api/chat \
+     -H 'Content-Type: application/json' \
+     -d '{"message":"Hello"}'
+   ```
+
+### Common npm/npx commands
+
+- **Start dev (remote, with bindings):**
+  ```bash
+  npm run dev
+  # or
+  npx wrangler dev
+  ```
+- **Start dev (local runtime):**
+  ```bash
+  npm run dev -- --local
+  # or
+  npx wrangler dev --local
+  ```
+- **Deploy to Cloudflare:**
+  ```bash
+  npm run deploy
+  # or
+  npx wrangler deploy
+  ```
+
 ## Theming & Customization
 
 The widget intelligently determines its theme by checking sources in a specific order of priority. This allows for flexible and powerful customization.
@@ -48,8 +129,12 @@ The widget intelligently determines its theme by checking sources in a specific 
 
 2.  **Host Page Theme Detection (Automatic):**
     If `data-color` is not set, the widget attempts to detect the theme from your website's existing styles. It looks for:
-    -   **Dominant Viewport Color:** Analyzes the main background color of your site to decide if it's light or dark.
+    -   **Background Color of Major Containers:** Inspects visible `main`, `#root`, `#app`, `#__next`, etc. to determine light/dark based on luminance.
     -   **CSS Variables:** Reads standard CSS variables like `--primary-color`, `--background`, `--text-color`, etc., to match your site's branding.
+    -   **Tailwind/DaisyUI Support:**
+        - Detects Tailwind `dark` mode class on `html`/`body`.
+        - Picks non-neutral Tailwind colors from elements with `bg-*` or `text-*` classes.
+        - Probes DaisyUI `btn btn-primary` to infer `primary-color` and `on-primary`.
     -   **Inferred Styles:** If variables aren't present, it infers colors from prominent elements like buttons and links.
 
 3.  **OS Preference (Fallback):**

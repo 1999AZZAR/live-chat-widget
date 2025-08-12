@@ -62,6 +62,8 @@ export function generateWidgetHTML(url) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chat with FREA</title>
   <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root { --footer-h: 64px; }
     body {
       margin: 0;
       height: 100vh;
@@ -75,7 +77,7 @@ export function generateWidgetHTML(url) {
     .chat-container {
       width: 100%;
       height: 100%;
-      border-radius: 16px;
+      border-radius: ${styles.borderRadius};
       background: ${colors.chatContainerBg};
       backdrop-filter: blur(20px);
       box-shadow: 0 8px 32px rgba(0,0,0,0.2);
@@ -83,6 +85,7 @@ export function generateWidgetHTML(url) {
       flex-direction: column;
       overflow: hidden;
       color: ${colors.textColor};
+      padding-bottom: env(safe-area-inset-bottom, 0);
     }
     .chat-header {
       background-color: ${colors.accentColor};
@@ -95,6 +98,8 @@ export function generateWidgetHTML(url) {
       flex: 1;
       overflow-y: auto;
       padding: 16px;
+      padding-bottom: calc(16px + var(--footer-h));
+      overscroll-behavior: contain;
     }
     
     .message {
@@ -140,14 +145,22 @@ export function generateWidgetHTML(url) {
     }
     
     .input-container {
-      display: flex;
-      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr 36px 36px;
+      column-gap: 8px;
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0)) 16px;
       border-top: 1px solid ${colors.aiMessageBg};
       background-color: ${colors.chatContainerBg};
+      align-items: center;
+      position: sticky;
+      bottom: 0;
+      min-height: var(--footer-h);
+      width: 100%;
+      box-sizing: border-box;
+      z-index: 10;
     }
     
     .input-field {
-      flex: 1;
       padding: 12px 16px;
       border: 1px solid ${colors.aiMessageBg};
       border-radius: ${styles.inputBorderRadius};
@@ -156,6 +169,11 @@ export function generateWidgetHTML(url) {
       transition: border-color 0.2s;
       background-color: ${colors.chatWindowBg};
       color: ${colors.textColor};
+      min-height: 40px;
+      min-width: 0; /* allow shrink in grid */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     
     .input-field:focus {
@@ -167,14 +185,15 @@ export function generateWidgetHTML(url) {
       color: ${userMessageColor};
       border: none;
       border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      margin-left: 8px;
+      width: 36px;
+      height: 36px;
+      justify-self: end;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: background-color 0.2s;
+      overflow: visible;
     }
     
     .send-button:hover {
@@ -182,8 +201,9 @@ export function generateWidgetHTML(url) {
     }
     
     .send-icon {
-      width: 24px;
-      height: 24px;
+      width: 18px;
+      height: 18px;
+      pointer-events: none;
     }
     
     .clear-button {
@@ -191,14 +211,15 @@ export function generateWidgetHTML(url) {
       color: ${colors.accentColor};
       border: 1px solid ${colors.aiMessageBg};
       border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      margin-left: 8px;
+      width: 36px;
+      height: 36px;
+      justify-self: end;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.2s;
+      overflow: visible;
     }
     
     .clear-button:hover {
@@ -206,8 +227,9 @@ export function generateWidgetHTML(url) {
     }
     
     .clear-icon {
-      width: 24px;
-      height: 24px;
+      width: 18px;
+      height: 18px;
+      pointer-events: none;
     }
     
     .typing-indicator {
@@ -259,11 +281,10 @@ export function generateWidgetHTML(url) {
     
     .ai-message a {
       color: ${colors.accentColor};
-      text-decoration: none; /* Remove underline by default */
-      border-bottom: 1px solid rgba(${colors.accentColor}, 0.4); /* Subtle bottom border */
+      text-decoration: none;
       word-break: break-all;
       font-weight: 500;
-      transition: all 0.2s ease-in-out;
+      transition: color 0.2s ease-in-out;
       padding: 0 2px;
       border-radius: 2px;
       position: relative;

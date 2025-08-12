@@ -526,12 +526,14 @@ export default {
     })();
     
     try {
-      // Quick path for static assets with caching headers
+      // Quick path for static assets with no-cache headers (ensure latest during dev and embed)
       if (url.pathname === '/widget.js') {
         return new Response(generateWidgetJS(url.origin), {
           headers: { 
             'Content-Type': 'application/javascript',
-            'Cache-Control': 'max-age=3600', // Cache for 1 hour
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
             ...corsHeaders
           }
         });
@@ -541,7 +543,9 @@ export default {
         return new Response(generateWidgetHTML(url), {
           headers: { 
             'Content-Type': 'text/html',
-            'Cache-Control': 'max-age=3600', // Cache for 1 hour
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
             ...corsHeaders
           }
         });
@@ -624,7 +628,9 @@ export default {
       return new Response(generateInstructionsHTML(url.origin), {
         headers: { 
           'Content-Type': 'text/html',
-          'Cache-Control': 'max-age=3600', // Cache for an hour
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
           ...corsHeaders
         }
       });
