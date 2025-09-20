@@ -499,18 +499,9 @@ export default {
     function isOriginAllowed(origin, allowedOrigins = []) {
       if (!origin) return false;
 
-      // Default allowlist - in production this should be configurable per tenant
-      const defaultAllowedOrigins = [
-        'http://localhost:3000',
-        'http://localhost:8787',
-        'http://127.0.0.1:8787',
-        'https://azzar.netlify.app',
-        'https://azzar-dev.pages.dev',
-        'https://llm-test.azzar.workers.dev'
-      ];
-
-      const finalAllowedOrigins = [...defaultAllowedOrigins, ...allowedOrigins];
-      return finalAllowedOrigins.includes(origin);
+      // For a live chat widget, allow all origins by default
+      // In production, this could be made configurable per tenant
+      return true;
     }
 
     // Function to validate request origin for API routes
@@ -549,12 +540,8 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Origin': '*', // Allow all origins for live chat widget
     };
-
-    // Only set Access-Control-Allow-Origin if we have a valid origin
-    if (requestOrigin) {
-      corsHeaders['Access-Control-Allow-Origin'] = requestOrigin;
-    }
 
     // Handle CORS preflight requests first (quick return)
     if (request.method === 'OPTIONS') {
