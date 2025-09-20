@@ -505,7 +505,8 @@ export default {
         'http://localhost:8787',
         'http://127.0.0.1:8787',
         'https://azzar.netlify.app',
-        'https://azzar-dev.pages.dev'
+        'https://azzar-dev.pages.dev',
+        'https://llm-test.azzar.workers.dev'
       ];
 
       const finalAllowedOrigins = [...defaultAllowedOrigins, ...allowedOrigins];
