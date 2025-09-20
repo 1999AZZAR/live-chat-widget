@@ -340,62 +340,41 @@ export function generateWidgetHTML(url) {
     
     // Simple HTML sanitizer to prevent XSS attacks
     function sanitizeHtml(html) {
+      if (!html || typeof html !== 'string') {
+        return '';
+      }
+
       // Create a temporary div to parse HTML
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = html;
 
-      // Allowed elements and attributes
-      const allowedElements = ['STRONG', 'EM', 'CODE', 'BR', 'OL', 'UL', 'LI', 'A', 'P'];
-      const allowedAttributes = {
-        'A': ['href', 'target', 'rel']
-      };
+      // Simple regex-based sanitization to avoid DOM manipulation issues
+      let sanitized = tempDiv.textContent || tempDiv.innerText || '';
+      
+      // Allow basic formatting by converting back to HTML using string replacement
+      // Use RegExp constructor to avoid template literal issues with HTML entities
+      sanitized = sanitized
+        .replace(new RegExp('&lt;strong&gt;', 'g'), '<strong>')
+        .replace(new RegExp('&lt;\\/strong&gt;', 'g'), '</strong>')
+        .replace(new RegExp('&lt;em&gt;', 'g'), '<em>')
+        .replace(new RegExp('&lt;\\/em&gt;', 'g'), '</em>')
+        .replace(new RegExp('&lt;code&gt;', 'g'), '<code>')
+        .replace(new RegExp('&lt;\\/code&gt;', 'g'), '</code>')
+        .replace(new RegExp('&lt;br&gt;', 'g'), '<br>')
+        .replace(new RegExp('&lt;br\\/&gt;', 'g'), '<br>')
+        .replace(new RegExp('&lt;br \\/&gt;', 'g'), '<br>');
 
-      // Function to sanitize a single element
-      function sanitizeElement(element) {
-        // Remove the element if it's not allowed
-        if (!allowedElements.includes(element.tagName)) {
-          // Replace with text content if available
-          if (element.textContent) {
-            element.parentNode.replaceChild(document.createTextNode(element.textContent), element);
-          } else {
-            element.parentNode.removeChild(element);
-          }
-          return;
+      // Handle links more carefully - use simpler regex to avoid template literal issues
+      const linkRegex = new RegExp('&lt;a href="([^"]*)".*?&gt;(.*?)&lt;\\/a&gt;', 'g');
+      sanitized = sanitized.replace(linkRegex, function(match, href, text) {
+        // Only allow https and http links
+        if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+          return '<a href="' + href + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
         }
+        return text; // Just return the text if href is not safe
+      });
 
-        // Sanitize attributes for allowed elements
-        if (allowedAttributes[element.tagName]) {
-          const allowedAttrs = allowedAttributes[element.tagName];
-          const attrs = Array.from(element.attributes);
-
-          attrs.forEach(attr => {
-            if (!allowedAttrs.includes(attr.name)) {
-              element.removeAttribute(attr.name);
-            } else if (attr.name === 'href') {
-              // Sanitize href attributes to prevent javascript: and data: URIs
-              const href = attr.value.toLowerCase();
-              if (href.startsWith('javascript:') || href.startsWith('data:') || href.startsWith('vbscript:')) {
-                element.removeAttribute(attr.name);
-              }
-            }
-          });
-        } else {
-          // Remove all attributes for elements without allowed attributes
-          const attrs = Array.from(element.attributes);
-          attrs.forEach(attr => element.removeAttribute(attr.name));
-        }
-
-        // Recursively sanitize child elements
-        const children = Array.from(element.children);
-        children.forEach(sanitizeElement);
-      }
-
-      // Sanitize all elements in the temporary div
-      const elements = Array.from(tempDiv.children);
-      elements.forEach(sanitizeElement);
-
-      // Return the sanitized HTML
-      return tempDiv.innerHTML;
+      return sanitized;
     }
 
     // Simple function to convert markdown to HTML
@@ -403,25 +382,44 @@ export function generateWidgetHTML(url) {
       if (!text) return '';
 
       // First, escape HTML characters to prevent XSS before processing markdown
-      text = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#x27;')
-        .replace(/\//g, '&#x2F;');
+      text = String(text || '')
+        .replace(new RegExp('&', 'g'), '&amp;')
+        .replace(new RegExp('<', 'g'), '&lt;')
+        .replace(new RegExp('>', 'g'), '&gt;')
+        .replace(new RegExp('"', 'g'), '&quot;')
+        .replace(new RegExp("'", 'g'), '&#x27;')
+        .replace(new RegExp('\\/', 'g'), '&#x2F;');
+
+      // Create regex patterns using RegExp constructor to avoid template literal issues
+      const newlinePattern = new RegExp('\\n{3,}', 'g');
+      const spaceNewlinePattern = new RegExp('(\\s*\\n\\s*){3,}', 'g');
+      const linkPattern = new RegExp('\\\\[([^\\\\]]+)\\\\]\\\\(([^\\\\)]+)\\\\)', 'g');
+      const urlPattern = new RegExp('(?:^|\\s)(https?:\\/\\/[^\\s<]+)', 'g');
+      const numberedListPattern = new RegExp('^(\\d+)\\.(\\s.+)$', 'gm');
+      const unorderedListPattern = new RegExp('^[\\\\*\\\\-](\\s.+)$', 'gm');
+      // Use separate patterns to avoid backreference issues in template literals
+      const boldPattern1 = new RegExp('\\\\*\\\\*(.*?)\\\\*\\\\*', 'g');
+      const boldPattern2 = new RegExp('__(.*?)__', 'g');
+      const italicPattern1 = new RegExp('\\\\*(.*?)\\\\*', 'g');
+      const italicPattern2 = new RegExp('_(.*?)_', 'g');
+      // Use RegExp constructor for code blocks to avoid backtick conflicts with template literal
+      const backtick = String.fromCharCode(96);
+      const codePattern = new RegExp(backtick + '([^' + backtick + ']+)' + backtick, 'g');
+      const newlineReplacePattern = new RegExp('\\n', 'g');
+      const brPattern = new RegExp('(<br>\\s*){3,}', 'g');
+      const spacePattern = new RegExp('\\s+', 'g');
 
       // First, fix formatting issues - replace excessive blank lines
-      text = text.replace(/\\n{3,}/g, '\\n\\n');
+      text = text.replace(newlinePattern, '\\n\\n');
 
       // Handle cases where there might be multiple line breaks with spaces between them
-      text = text.replace(/(\\s*\\n\\s*){3,}/g, '\\n\\n');
+      text = text.replace(spaceNewlinePattern, '\\n\\n');
       
       // Special check for links before anything else
       // Links with markdown format [text](url)
-      text = text.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, function(match, p1, p2) {
+      text = text.replace(linkPattern, function(match, p1, p2) {
         // Remove any spaces that might be in the URL
-        let url = p2.replace(/\\s+/g, '');
+        let url = p2.replace(spacePattern, '');
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
           // If it's a Wikipedia link or other common domain, assume https
           if (url.includes('wikipedia.org') || url.includes('github.com')) {
@@ -434,32 +432,31 @@ export function generateWidgetHTML(url) {
       });
       
       // Plain URLs that are not part of markdown links - fix spaces within URLs
-      text = text.replace(/(?:^|\\s)(https?:\\/\\/[^\\s<]+(?:\\.\\s*[^\\s<]+)*)/g, function(match, url) {
+      text = text.replace(urlPattern, function(match, url) {
         // Remove any spaces from the URL
-        const cleanUrl = url.replace(/\\s+/g, '');
+        const cleanUrl = url.replace(spacePattern, '');
         return ' <a href="' + cleanUrl + '" target="_blank" rel="noopener noreferrer">' + cleanUrl + '</a>';
       });
       
       // Replace numbered lists (e.g., 1. Item -> <ol><li>Item</li></ol>)
-      let hasNumberedList = false;
-      let listMatch = text.match(/^(\\d+)\\.(\\s.+)$/gm);
+      let listMatch = text.match(numberedListPattern);
       
       if (listMatch) {
-        hasNumberedList = true;
-        
         // Create a temporary version without the list to process later
         let tempText = text;
         
         // Extract all list items
         let listItems = [];
-        let listRegex = /^(\\d+)\\.(\\s.+)$/gm;
         let match;
         
-        while ((match = listRegex.exec(text)) !== null) {
+        while ((match = numberedListPattern.exec(text)) !== null) {
           listItems.push('<li>' + match[2].trim() + '</li>');
           // Remove this item from the temp text
           tempText = tempText.replace(match[0], '');
         }
+        
+        // Reset regex lastIndex
+        numberedListPattern.lastIndex = 0;
         
         // Add the ordered list with items
         if (listItems.length > 0) {
@@ -471,17 +468,19 @@ export function generateWidgetHTML(url) {
       }
       
       // Handle unordered lists (* or - items)
-      let unorderedMatch = text.match(/^[*\\-](\\s.+)$/gm);
+      let unorderedMatch = text.match(unorderedListPattern);
       if (unorderedMatch) {
         let tempText = text;
         let listItems = [];
-        let listRegex = /^[*\\-](\\s.+)$/gm;
         let match;
         
-        while ((match = listRegex.exec(text)) !== null) {
+        while ((match = unorderedListPattern.exec(text)) !== null) {
           listItems.push('<li>' + match[1].trim() + '</li>');
           tempText = tempText.replace(match[0], '');
         }
+        
+        // Reset regex lastIndex
+        unorderedListPattern.lastIndex = 0;
         
         if (listItems.length > 0) {
           let listHtml = '<ul>' + listItems.join('') + '</ul>';
@@ -491,19 +490,21 @@ export function generateWidgetHTML(url) {
       }
       
       // Replace ** or __ for bold
-      text = text.replace(/(\\*\\*|__)(.*?)\\1/g, '<strong>$2</strong>');
+      text = text.replace(boldPattern1, '<strong>$1</strong>');
+      text = text.replace(boldPattern2, '<strong>$1</strong>');
       
-      // Replace * or _ for italics
-      text = text.replace(/(\\*|_)(.*?)\\1/g, '<em>$2</em>');
+      // Replace * or _ for italics  
+      text = text.replace(italicPattern1, '<em>$1</em>');
+      text = text.replace(italicPattern2, '<em>$1</em>');
       
       // Replace code blocks
-      text = text.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
+      text = text.replace(codePattern, '<code>$1</code>');
       
       // Replace new lines with <br>
-      text = text.replace(/\\n/g, '<br>');
+      text = text.replace(newlineReplacePattern, '<br>');
       
       // Fix any excessive <br> tags
-      text = text.replace(/(<br>\\s*){3,}/g, '<br><br>');
+      text = text.replace(brPattern, '<br><br>');
 
       // Apply HTML sanitization to prevent XSS attacks
       return sanitizeHtml(text);

@@ -587,10 +587,11 @@ export default {
         const secondsUntilNextMinute = (nextMinute * 60000 - now) / 1000;
 
         // Check IP-based rate limit (existing logic)
+        let ipRequestCount = 0;
         if (clientIP !== 'unknown_ip') {
           const ipKey = `rate_limit:ip:${clientIP}:${currentMinute}`;
           const ipCount = await env.RATE_LIMITER_KV.get(ipKey);
-          const ipRequestCount = ipCount ? parseInt(ipCount) : 0;
+          ipRequestCount = ipCount ? parseInt(ipCount) : 0;
 
           if (ipRequestCount >= 100) {
             rateLimitExceeded = true;
@@ -601,8 +602,8 @@ export default {
         }
 
         // Check customer-based rate limit (new feature)
-        const customerKey = `rate_limit:customer:${customerKey}:${currentMinute}`;
-        const customerCount = await env.RATE_LIMITER_KV.get(customerKey);
+        const customerRateLimitKey = `rate_limit:customer:${customerKey}:${currentMinute}`;
+        const customerCount = await env.RATE_LIMITER_KV.get(customerRateLimitKey);
         const customerRequestCount = customerCount ? parseInt(customerCount) : 0;
 
         // Customer limit is lower than IP limit to prevent abuse per API key
@@ -627,7 +628,7 @@ export default {
 
         // Increment customer counter
         incrementPromises.push(
-          env.RATE_LIMITER_KV.put(customerKey, (customerRequestCount + 1).toString(), { expirationTtl: 60 })
+          env.RATE_LIMITER_KV.put(customerRateLimitKey, (customerRequestCount + 1).toString(), { expirationTtl: 60 })
             .catch(e => console.error('Customer rate limiter increment error:', e))
         );
 
