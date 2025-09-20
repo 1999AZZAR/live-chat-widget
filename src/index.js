@@ -257,7 +257,7 @@ function deduplicateResponse(text) {
 async function initializeKVCache(env) {
   if (env && env.KV) {
     if (env.DEBUG) console.log('Initializing KV cache');
-    
+
     // Create a more robust KV wrapper with caching functionality
     kvCache = {
       async get(key) {
@@ -272,7 +272,7 @@ async function initializeKVCache(env) {
           return null;
         }
       },
-      
+
       async set(key, value, ttl = 86400) { // Default TTL: 1 day
         try {
           await env.KV.put(key, JSON.stringify(value), { expirationTtl: ttl });
@@ -280,7 +280,7 @@ async function initializeKVCache(env) {
           console.error('Error setting KV cache:', error);
         }
       },
-      
+
       async has(key) {
         try {
           const value = await env.KV.get(key);
@@ -291,11 +291,11 @@ async function initializeKVCache(env) {
         }
       }
     };
-    
+
     return true;
   }
-  
-  console.log('KV binding not available, using memory cache only');
+
+  if (env.DEBUG) console.log('KV binding not available, using memory cache only');
   return false;
 }
 
@@ -325,7 +325,7 @@ async function sendToAI(messages, env) {
 
     // Then check KV cache if available (slower but persistent)
     let kvCacheResult = null;
-    if (env.KV) {
+    if (kvCache.has) {
       kvCacheResult = await kvCache.get(cacheKey);
       if (kvCacheResult) {
         if (env.DEBUG) console.log('KV cache hit!');
@@ -464,9 +464,9 @@ async function sendToAI(messages, env) {
     
     // Store the response in the cache
     memoryCache.set(cacheKey, responseText);
-    
+
     // Also store in KV cache if available
-    if (env.KV) {
+    if (kvCache.set) {
       await kvCache.set(cacheKey, responseText);
     }
     
@@ -488,9 +488,11 @@ async function sendToAI(messages, env) {
 export default {
   async fetch(request, env) {
     // Initialize KV cache if available
-    if (env && env.KV) {
-      await initializeKVCache(env);
-    }
+    // Note: KV binding is commented out in wrangler.toml, so this won't run
+    // Uncomment and add real KV namespace ID when ready to enable KV caching
+    // if (env && env.KV) {
+    //   await initializeKVCache(env);
+    // }
 
     const url = new URL(request.url);
     // Function to validate origin against allowlist

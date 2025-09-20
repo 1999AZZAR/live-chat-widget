@@ -8,9 +8,9 @@ Legend: [ ] todo, [~] in-progress, [x] done
 
 - [x] Fix undocumented/missing endpoints vs docs
   - [x] Implement `GET /api/welcome-message` (documented in `README.md` but not implemented in `src/index.js`).
-- [x] Bindings and config parity
+- [ ] Bindings and config parity
   - [x] Add a dedicated KV namespace for response cache (code expects `env.KV`; `wrangler.toml` only defines `SYSTEM_PROMPT` and `RATE_LIMITER_KV`).
-  - [x] Either change code to use a new binding (e.g., `RESPONSE_CACHE_KV`) or remove KV path until provisioned.
+  - [ ] Create real KV namespace and replace placeholder ID in `wrangler.toml` to enable KV caching.
   - [ ] Use `SYSTEM_PROMPT` KV to source persona per tenant (see P1 multi-tenant).
 - [x] XSS hardening for AI markdown rendering
   - [x] Escape/sanitize HTML before regex markdown transforms in `iframe-generator.js` (`markdownToHtml`).
