@@ -192,7 +192,7 @@ function deduplicateResponse(text) {
       
       // Only keep the first section if it's substantial
       if (firstSection.trim().length > 50) {
-        console.log('Deduplication: Found repeated introduction pattern, keeping first instance.');
+        if (env && env.DEBUG) console.log('Deduplication: Found repeated introduction pattern, keeping first instance.');
         return firstSection.trim();
       }
     }
@@ -225,13 +225,13 @@ function deduplicateResponse(text) {
         uniqueSentences.push(sentence);
         seenSentences.add(trimmedSentence);
       } else {
-        console.log(`Deduplication: Found similar sentence, removing: "${trimmedSentence.substring(0, 50)}..."`);
+        if (env && env.DEBUG) console.log(`Deduplication: Found similar sentence, removing: "${trimmedSentence.substring(0, 50)}..."`);
       }
     }
     
     // If we removed any duplicates
     if (uniqueSentences.length < sentences.length) {
-      console.log(`Deduplication: Removed ${sentences.length - uniqueSentences.length} duplicate or highly similar sentences`);
+      if (env && env.DEBUG) console.log(`Deduplication: Removed ${sentences.length - uniqueSentences.length} duplicate or highly similar sentences`);
       return uniqueSentences.join('');
     }
   }
@@ -256,7 +256,7 @@ function deduplicateResponse(text) {
 // Function to initialize KV cache if available
 async function initializeKVCache(env) {
   if (env && env.KV) {
-    console.log('Initializing KV cache');
+    if (env.DEBUG) console.log('Initializing KV cache');
     
     // Create a more robust KV wrapper with caching functionality
     kvCache = {
@@ -299,10 +299,15 @@ async function initializeKVCache(env) {
   return false;
 }
 
-// Function to send messages to the AI
+  // Function to send messages to the AI
 async function sendToAI(messages, env) {
   try {
-    console.log('Processing request with messages:', JSON.stringify(messages, null, 2));
+    // Log request summary only (avoid logging full message content in production)
+    if (env.DEBUG) {
+      console.log('Processing request with messages:', JSON.stringify(messages, null, 2));
+    } else {
+      console.log(`Processing AI request with ${messages.length} messages`);
+    }
     
     if (!env.AI) {
       console.error('AI binding is not available. Check your wrangler.toml configuration.');
@@ -314,16 +319,16 @@ async function sendToAI(messages, env) {
     
     // Check memory cache first (fastest)
     if (memoryCache.has(cacheKey)) {
-      console.log('Memory cache hit!');
+      if (env.DEBUG) console.log('Memory cache hit!');
       return memoryCache.get(cacheKey);
     }
-    
+
     // Then check KV cache if available (slower but persistent)
     let kvCacheResult = null;
     if (env.KV) {
       kvCacheResult = await kvCache.get(cacheKey);
       if (kvCacheResult) {
-        console.log('KV cache hit!');
+        if (env.DEBUG) console.log('KV cache hit!');
         // Update memory cache for faster access next time
         memoryCache.set(cacheKey, kvCacheResult);
         return kvCacheResult;
@@ -336,7 +341,11 @@ async function sendToAI(messages, env) {
     
     if (lastUserMessage && shouldUseWikipedia(lastUserMessage.content)) {
       wikipediaInfo = await queryWikipedia(lastUserMessage.content);
-      console.log('Wikipedia query results:', JSON.stringify(wikipediaInfo, null, 2));
+      if (env.DEBUG) {
+        console.log('Wikipedia query results:', JSON.stringify(wikipediaInfo, null, 2));
+      } else if (wikipediaInfo && wikipediaInfo.success) {
+        console.log(`Wikipedia integration: Found info for "${wikipediaInfo.title}"`);
+      }
       
       // If Wikipedia returned useful information, add it to the system message
       if (wikipediaInfo && wikipediaInfo.success) {
@@ -384,7 +393,8 @@ async function sendToAI(messages, env) {
       max_tokens: MAX_OUTPUT_TOKENS,
       temperature: 0.7, // Add some temperature for more natural responses
       top_p: 0.95,      // Adjust top_p for more focused responses
-      stop_sequences: ['\\n\\n', ']', '```'] // Stop generation at these sequences
+      // Removed aggressive stop_sequences to avoid truncating valid content like code blocks and lists
+      // Rely on max_tokens and post-processing cleanup instead
     });
     
     console.log('Raw AI response received');
@@ -426,12 +436,17 @@ async function sendToAI(messages, env) {
     // Clean up the response text formatting
     responseText = cleanupFormatting(responseText);
     
-    console.log('AI Response (Pre-Deduplication):', responseText.substring(0, 100) + '...'); // Log start of response
+    // Log AI response summary (avoid full content logging in production)
+    if (env.DEBUG) {
+      console.log('AI Response (Pre-Deduplication):', responseText.substring(0, 100) + '...');
+    }
 
     // Apply our enhanced deduplication function
     responseText = deduplicateResponse(responseText);
-    
-    console.log('Final extracted response text (Post-Deduplication):', responseText.substring(0, 100) + '...');
+
+    if (env.DEBUG) {
+      console.log('Final extracted response text (Post-Deduplication):', responseText.substring(0, 100) + '...');
+    }
     
     // If we used Wikipedia, add a citation
     if (wikipediaInfo && wikipediaInfo.success && wikipediaInfo.url && wikipediaInfo.title) {
@@ -478,11 +493,65 @@ export default {
     }
 
     const url = new URL(request.url);
+    // Function to validate origin against allowlist
+    function isOriginAllowed(origin, allowedOrigins = []) {
+      if (!origin) return false;
+
+      // Default allowlist - in production this should be configurable per tenant
+      const defaultAllowedOrigins = [
+        'http://localhost:3000',
+        'http://localhost:8787',
+        'http://127.0.0.1:8787',
+        'https://azzar.netlify.app',
+        'https://azzar-dev.pages.dev'
+      ];
+
+      const finalAllowedOrigins = [...defaultAllowedOrigins, ...allowedOrigins];
+      return finalAllowedOrigins.includes(origin);
+    }
+
+    // Function to validate request origin for API routes
+    function validateApiRequestOrigin(request, allowedOrigins = []) {
+      const origin = request.headers.get('Origin');
+      const referer = request.headers.get('Referer');
+
+      // For API routes, we need to validate the origin
+      if (request.url.includes('/api/')) {
+        // Check Origin header first
+        if (origin && isOriginAllowed(origin, allowedOrigins)) {
+          return origin;
+        }
+
+        // Fallback to Referer header (some older browsers or specific setups)
+        if (referer) {
+          try {
+            const refererUrl = new URL(referer);
+            if (isOriginAllowed(refererUrl.origin, allowedOrigins)) {
+              return refererUrl.origin;
+            }
+          } catch (e) {
+            console.warn('Invalid Referer header:', referer);
+          }
+        }
+
+        // If no valid origin found, reject the request
+        return null;
+      }
+
+      return origin && isOriginAllowed(origin, allowedOrigins) ? origin : null;
+    }
+
+    // Get validated origin for CORS
+    const requestOrigin = validateApiRequestOrigin(request);
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
+
+    // Only set Access-Control-Allow-Origin if we have a valid origin
+    if (requestOrigin) {
+      corsHeaders['Access-Control-Allow-Origin'] = requestOrigin;
+    }
 
     // Handle CORS preflight requests first (quick return)
     if (request.method === 'OPTIONS') {
@@ -492,37 +561,82 @@ export default {
       });
     }
 
-    // Rate Limiting Logic - Process asynchronously to avoid blocking the response
+    // Enhanced Rate Limiting Logic - Support for both IP and customer-level throttling
     const clientIP = request.headers.get('CF-Connecting-IP') || 'unknown_ip';
     let rateLimitExceeded = false;
-    
+    let retryAfterSeconds = 60; // Default retry after time
+
+    // Extract customer identifier (API key, tenant ID, etc.)
+    const customerKey = request.headers.get('Authorization')?.replace('Bearer ', '') ||
+                       request.headers.get('X-API-Key') ||
+                       url.searchParams.get('api_key') ||
+                       'anonymous';
+
     // Start rate limiting check in background
     const rateLimitPromise = (async () => {
-      if (clientIP !== 'unknown_ip' && env.RATE_LIMITER_KV) {
-        try {
-          const now = Date.now();
-          const currentMinute = Math.floor(now / 60000);
-          const key = `rate_limit:${clientIP}:${currentMinute}`;
-          const currentCount = await env.RATE_LIMITER_KV.get(key);
-          const count = currentCount ? parseInt(currentCount) : 0;
-          
-          if (count >= 100) {
+      if (!env.RATE_LIMITER_KV) {
+        return false;
+      }
+
+      try {
+        const now = Date.now();
+        const currentMinute = Math.floor(now / 60000);
+        const nextMinute = currentMinute + 1;
+        const secondsUntilNextMinute = (nextMinute * 60000 - now) / 1000;
+
+        // Check IP-based rate limit (existing logic)
+        if (clientIP !== 'unknown_ip') {
+          const ipKey = `rate_limit:ip:${clientIP}:${currentMinute}`;
+          const ipCount = await env.RATE_LIMITER_KV.get(ipKey);
+          const ipRequestCount = ipCount ? parseInt(ipCount) : 0;
+
+          if (ipRequestCount >= 100) {
             rateLimitExceeded = true;
-            console.log(`Rate limit exceeded for IP: ${clientIP}. Count: ${count}`);
+            console.log(`IP rate limit exceeded for ${clientIP}. Count: ${ipRequestCount}`);
+            retryAfterSeconds = Math.ceil(secondsUntilNextMinute);
             return true;
           }
-          
-          // Increment counter in the background (don't await)
-          env.RATE_LIMITER_KV.put(key, (count + 1).toString(), { expirationTtl: 60 })
-            .catch(e => console.error('Rate limiter increment error:', e));
-            
-          return false;
-        } catch (e) {
-          console.error('Rate limiter KV error:', e);
-          return false;
         }
+
+        // Check customer-based rate limit (new feature)
+        const customerKey = `rate_limit:customer:${customerKey}:${currentMinute}`;
+        const customerCount = await env.RATE_LIMITER_KV.get(customerKey);
+        const customerRequestCount = customerCount ? parseInt(customerCount) : 0;
+
+        // Customer limit is lower than IP limit to prevent abuse per API key
+        if (customerRequestCount >= 30) {
+          rateLimitExceeded = true;
+          console.log(`Customer rate limit exceeded for ${customerKey}. Count: ${customerRequestCount}`);
+          retryAfterSeconds = Math.ceil(secondsUntilNextMinute);
+          return true;
+        }
+
+        // Increment both counters in the background (don't await)
+        const incrementPromises = [];
+
+        // Increment IP counter
+        if (clientIP !== 'unknown_ip') {
+          const ipKey = `rate_limit:ip:${clientIP}:${currentMinute}`;
+          incrementPromises.push(
+            env.RATE_LIMITER_KV.put(ipKey, (ipRequestCount + 1).toString(), { expirationTtl: 60 })
+              .catch(e => console.error('IP rate limiter increment error:', e))
+          );
+        }
+
+        // Increment customer counter
+        incrementPromises.push(
+          env.RATE_LIMITER_KV.put(customerKey, (customerRequestCount + 1).toString(), { expirationTtl: 60 })
+            .catch(e => console.error('Customer rate limiter increment error:', e))
+        );
+
+        // Execute increments without waiting
+        incrementPromises.forEach(promise => promise.catch(() => {}));
+
+        return false;
+      } catch (e) {
+        console.error('Rate limiter KV error:', e);
+        return false;
       }
-      return false;
     })();
     
     try {
@@ -551,17 +665,27 @@ export default {
         });
       }
       
-      // For API endpoints, check rate limit before proceeding
+      // For API endpoints, check rate limit and origin validation before proceeding
       if (url.pathname.startsWith('/api/')) {
+        // Validate origin for API requests to block direct abuse
+        if (!requestOrigin) {
+          return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
+            status: 403,
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+        }
+
         // Wait for rate limit check to complete
         const isRateLimited = await rateLimitPromise;
         if (isRateLimited) {
-          return new Response(JSON.stringify({ error: 'Too Many Requests' }), { 
+          return new Response(JSON.stringify({ error: 'Too Many Requests' }), {
             status: 429,
             headers: {
               ...corsHeaders,
               'Content-Type': 'application/json',
-              'Retry-After': '60'
+              'Retry-After': retryAfterSeconds.toString()
             }
           });
         }
@@ -613,11 +737,39 @@ export default {
         });
       }
       
+      // Handle welcome message request
+      if (url.pathname === '/api/welcome-message' && request.method === 'GET') {
+        try {
+          // Create a simple welcome message using the AI
+          const messages = [
+            { role: 'system', content: getSystemPrompt() + '\n\nPlease provide a brief, friendly welcome message introducing yourself as FREA, the AI assistant. Keep it concise and engaging.' }
+          ];
+
+          const welcomeMessage = await sendToAI(messages, env);
+
+          return new Response(JSON.stringify({ message: welcomeMessage }), {
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        } catch (error) {
+          console.error('Error generating welcome message:', error);
+          return new Response(JSON.stringify({ error: 'Failed to generate welcome message' }), {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+      }
+
       // Handle cache stats request (for debugging)
       if (url.pathname === '/api/cache-stats' && request.method === 'GET') {
         const stats = getMemoryCacheStats();
         return new Response(JSON.stringify(stats), {
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             ...corsHeaders
           }

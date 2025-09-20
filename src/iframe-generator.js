@@ -338,13 +338,82 @@ export function generateWidgetHTML(url) {
     const clearButton = document.getElementById('clear-button');
     const typingIndicator = document.getElementById('typing-indicator');
     
+    // Simple HTML sanitizer to prevent XSS attacks
+    function sanitizeHtml(html) {
+      // Create a temporary div to parse HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+
+      // Allowed elements and attributes
+      const allowedElements = ['STRONG', 'EM', 'CODE', 'BR', 'OL', 'UL', 'LI', 'A', 'P'];
+      const allowedAttributes = {
+        'A': ['href', 'target', 'rel']
+      };
+
+      // Function to sanitize a single element
+      function sanitizeElement(element) {
+        // Remove the element if it's not allowed
+        if (!allowedElements.includes(element.tagName)) {
+          // Replace with text content if available
+          if (element.textContent) {
+            element.parentNode.replaceChild(document.createTextNode(element.textContent), element);
+          } else {
+            element.parentNode.removeChild(element);
+          }
+          return;
+        }
+
+        // Sanitize attributes for allowed elements
+        if (allowedAttributes[element.tagName]) {
+          const allowedAttrs = allowedAttributes[element.tagName];
+          const attrs = Array.from(element.attributes);
+
+          attrs.forEach(attr => {
+            if (!allowedAttrs.includes(attr.name)) {
+              element.removeAttribute(attr.name);
+            } else if (attr.name === 'href') {
+              // Sanitize href attributes to prevent javascript: and data: URIs
+              const href = attr.value.toLowerCase();
+              if (href.startsWith('javascript:') || href.startsWith('data:') || href.startsWith('vbscript:')) {
+                element.removeAttribute(attr.name);
+              }
+            }
+          });
+        } else {
+          // Remove all attributes for elements without allowed attributes
+          const attrs = Array.from(element.attributes);
+          attrs.forEach(attr => element.removeAttribute(attr.name));
+        }
+
+        // Recursively sanitize child elements
+        const children = Array.from(element.children);
+        children.forEach(sanitizeElement);
+      }
+
+      // Sanitize all elements in the temporary div
+      const elements = Array.from(tempDiv.children);
+      elements.forEach(sanitizeElement);
+
+      // Return the sanitized HTML
+      return tempDiv.innerHTML;
+    }
+
     // Simple function to convert markdown to HTML
     function markdownToHtml(text) {
       if (!text) return '';
-      
+
+      // First, escape HTML characters to prevent XSS before processing markdown
+      text = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;')
+        .replace(/\//g, '&#x2F;');
+
       // First, fix formatting issues - replace excessive blank lines
       text = text.replace(/\\n{3,}/g, '\\n\\n');
-      
+
       // Handle cases where there might be multiple line breaks with spaces between them
       text = text.replace(/(\\s*\\n\\s*){3,}/g, '\\n\\n');
       
@@ -435,8 +504,9 @@ export function generateWidgetHTML(url) {
       
       // Fix any excessive <br> tags
       text = text.replace(/(<br>\\s*){3,}/g, '<br><br>');
-      
-      return text;
+
+      // Apply HTML sanitization to prevent XSS attacks
+      return sanitizeHtml(text);
     }
     
     // Keep track of conversation history

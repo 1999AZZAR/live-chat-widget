@@ -6,25 +6,25 @@ Legend: [ ] todo, [~] in-progress, [x] done
 
 ## P0 — Critical correctness, stability, and security
 
-- [ ] Fix undocumented/missing endpoints vs docs
-  - [ ] Implement `GET /api/welcome-message` (documented in `README.md` but not implemented in `src/index.js`).
-- [ ] Bindings and config parity
-  - [ ] Add a dedicated KV namespace for response cache (code expects `env.KV`; `wrangler.toml` only defines `SYSTEM_PROMPT` and `RATE_LIMITER_KV`).
-  - [ ] Either change code to use a new binding (e.g., `RESPONSE_CACHE_KV`) or remove KV path until provisioned.
+- [x] Fix undocumented/missing endpoints vs docs
+  - [x] Implement `GET /api/welcome-message` (documented in `README.md` but not implemented in `src/index.js`).
+- [x] Bindings and config parity
+  - [x] Add a dedicated KV namespace for response cache (code expects `env.KV`; `wrangler.toml` only defines `SYSTEM_PROMPT` and `RATE_LIMITER_KV`).
+  - [x] Either change code to use a new binding (e.g., `RESPONSE_CACHE_KV`) or remove KV path until provisioned.
   - [ ] Use `SYSTEM_PROMPT` KV to source persona per tenant (see P1 multi-tenant).
-- [ ] XSS hardening for AI markdown rendering
-  - [ ] Escape/sanitize HTML before regex markdown transforms in `iframe-generator.js` (`markdownToHtml`).
-  - [ ] Add allowlist for links; strip scripts/data URIs; consider a lightweight sanitizer.
-- [ ] CORS and embed hardening
-  - [ ] Replace `Access-Control-Allow-Origin: *` with allowlist of customer origins (configurable per tenant) for API routes.
-  - [ ] Validate `Origin`/`Referer` on `/api/*` to block direct abuse.
-- [ ] Rate limiting resilience
-  - [ ] Add customer-level throttles (per API key/tenant) in addition to IP (`RATE_LIMITER_KV`).
-  - [ ] Return precise `Retry-After` seconds based on window remainder.
-- [ ] Logging hygiene
-  - [ ] Guard verbose logs behind `DEBUG` flag; avoid logging full message bodies in production.
-- [ ] Model stop sequences sanity
-  - [ ] Revisit `stop_sequences: ['\n\n', ']', '```']` to avoid truncating valid content (e.g., code blocks, lists).
+- [x] XSS hardening for AI markdown rendering
+  - [x] Escape/sanitize HTML before regex markdown transforms in `iframe-generator.js` (`markdownToHtml`).
+  - [x] Add allowlist for links; strip scripts/data URIs; consider a lightweight sanitizer.
+- [x] CORS and embed hardening
+  - [x] Replace `Access-Control-Allow-Origin: *` with allowlist of customer origins (configurable per tenant) for API routes.
+  - [x] Validate `Origin`/`Referer` on `/api/*` to block direct abuse.
+- [x] Rate limiting resilience
+  - [x] Add customer-level throttles (per API key/tenant) in addition to IP (`RATE_LIMITER_KV`).
+  - [x] Return precise `Retry-After` seconds based on window remainder.
+- [x] Logging hygiene
+  - [x] Guard verbose logs behind `DEBUG` flag; avoid logging full message bodies in production.
+- [x] Model stop sequences sanity
+  - [x] Revisit `stop_sequences: ['\n\n', ']', '```']` to avoid truncating valid content (e.g., code blocks, lists).
 
 ## P1 — Multi-tenant SaaS readiness
 

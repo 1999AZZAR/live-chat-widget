@@ -6,6 +6,9 @@ compatibility_date = "2025-05-14"
 [observability]
 enabled = true
 
+[vars]
+DEBUG = false
+
 [ai]
 binding = "AI"
 
@@ -16,3 +19,7 @@ id = "c5b17d99100540cab8837900b61d9c76"
 [[kv_namespaces]]
 binding = "RATE_LIMITER_KV"
 id = "efe51f08b6734a86bb39c71b10cf0da4"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "b2c5e8a9f1d24b7c8e9f2a1b3c4d5e6f7"
