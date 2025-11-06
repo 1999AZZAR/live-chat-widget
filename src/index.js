@@ -1,6 +1,5 @@
 // Environment setup & configuration
 import { generateWidgetJS } from './widget-generator.js';
-import { generateInstructionsHTML } from './demo-generator.js';
 import { generateWidgetHTML } from './iframe-generator.js';
 import { LRUCache, memoryCache, getMemoryCacheStats } from './lru-handler.js';
 import systemInstruction from './systemInstruction.txt';
@@ -767,9 +766,25 @@ export default {
         });
       }
       
-      // For root path, serve simple instructions on how to use the widget
-      return new Response(generateInstructionsHTML(url.origin), {
-        headers: { 
+      // For root path, serve simple instructions
+      return new Response(`
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Azzar AI Chat Widget</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Azzar AI Chat Widget</h1>
+  <p>To use the widget, add this script tag to your website:</p>
+  <pre><code>&lt;script src="${url.origin}/widget.js"&gt;&lt;/script&gt;</code></pre>
+  <p>For more information, visit the <a href="https://github.com/1999AZZAR/live-chat-widget">GitHub repository</a>.</p>
+</body>
+</html>`, {
+        headers: {
           'Content-Type': 'text/html',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
