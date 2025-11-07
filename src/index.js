@@ -771,14 +771,14 @@ export default {
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Azzar AI Chat Widget</title>
+  <title>Live Chat Widget</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
     code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
   </style>
 </head>
 <body>
-  <h1>Azzar AI Chat Widget</h1>
+  <h1>Live Chat Widget</h1>
   <p>To use the widget, add this script tag to your website:</p>
   <pre><code>&lt;script src="${url.origin}/widget.js"&gt;&lt;/script&gt;</code></pre>
   <p>For more information, visit the <a href="https://github.com/1999AZZAR/live-chat-widget">GitHub repository</a>.</p>

@@ -1,4 +1,4 @@
-name = "llm-test"
+name = "live-chat-widget"
 main = "src/index.js"
 workers_dev = true
 compatibility_date = "2025-05-14"

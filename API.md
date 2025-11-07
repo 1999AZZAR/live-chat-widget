@@ -1,6 +1,6 @@
-# Azzar AI Chat Widget API Reference
+# Live Chat Widget API Reference
 
-This document provides details about the API endpoints available for the Azzar AI Chat Widget, which is powered by Cloudflare Workers.
+This document provides details about the API endpoints available for the Live Chat Widget, which is powered by Cloudflare Workers.
 
 ## Common Headers
 

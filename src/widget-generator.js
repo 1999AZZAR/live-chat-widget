@@ -1,6 +1,6 @@
 export function generateWidgetJS(origin) {
     return `
-  // Azzar AI Chat Widget
+  // Live Chat Widget
   (function() {
     // This is the origin of the worker, passed in when the script is generated.
     const workerOrigin = '${origin}';
