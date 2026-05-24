@@ -26,17 +26,15 @@ Legend: [ ] todo, [~] in-progress, [x] done
 - [x] Model stop sequences sanity
   - [x] Revisit `stop_sequences: ['\n\n', ']', '```']` to avoid truncating valid content (e.g., code blocks, lists).
 
-## P1 — Dynamic Configuration
+## P1 — Configuration
 
-- [ ] Widget Authentication
-  - [ ] Support auth via API key or signed embed token on `GET /widget.js` and `/api/*`.
-  - [ ] Add dynamic config: theme defaults, language fallback, rate-limit tier, model, temperature.
+- [ ] Widget Authentication & Security
+  - [ ] Support optional API key protection on `/api/*`.
 - [ ] Config storage
-  - [ ] Use `SYSTEM_PROMPT` KV (or D1) for dynamic persona/system prompt and knowledge equivalents.
-  - [ ] Add Admin API (protected) to update persona/config and manage keys.
+  - [ ] Use `SYSTEM_PROMPT` KV for easy updates to persona/system prompt and knowledge equivalents without redeploying.
+  - [ ] Set theme defaults, language fallback, model, and temperature via `wrangler.toml` vars.
 - [ ] Setup UX
   - [ ] Generate unique embed snippet including SRI and version pin.
-  - [ ] Minimal hosted admin page to manage settings and copy snippets.
 
 ## P1 — Reliability and performance
 
@@ -122,10 +120,9 @@ Legend: [ ] todo, [~] in-progress, [x] done
 - [ ] Sanitize AI output in `markdownToHtml` before formatting.
 - [ ] Replace `*` CORS with origin allowlist; validate `Origin`/`Referer` for `/api/*`.
 
-2) Dynamic Configuration MVP
+2) Configuration MVP
 - [ ] Add API keys; validate on `/widget.js` and `/api/*` via query/header.
 - [ ] Persist dynamic config + persona in `SYSTEM_PROMPT` KV.
-- [ ] Provide a basic Admin API (bearer protected) to set persona and theme defaults.
 
 3) Performance & UX
 - [ ] KV-backed cache with configurable TTL; keep memory LRU hot cache.
@@ -149,4 +146,6 @@ Legend: [ ] todo, [~] in-progress, [x] done
 - `stop_sequences` likely too aggressive and may truncate valid content.
 - Theming detector includes a `drawWindow` attempt (non-standard); it’s wrapped in try/catch, but we should avoid heavy operations by default.
 - Persona and knowledge resources are static files; move to KV for dynamic updates.
+- CORS is `*`; switch to configurable allowlist.
+files; move to KV for dynamic updates.
 - CORS is `*`; switch to configurable allowlist.
