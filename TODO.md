@@ -10,7 +10,7 @@ Legend: [ ] todo, [~] in-progress, [x] done
   - [x] Implement `GET /api/welcome-message` (documented in `README.md` but not implemented in `src/index.js`).
 - [ ] Bindings and config parity
   - [x] Add a dedicated KV namespace for response cache (code expects `env.KV`; `wrangler.toml` only defines `SYSTEM_PROMPT` and `RATE_LIMITER_KV`).
-  - [ ] Create real KV namespace and replace placeholder ID in `wrangler.toml` to enable KV caching.
+  - [x] Create real KV namespace and replace placeholder ID in `wrangler.toml` to enable KV caching.
   - [ ] Use `SYSTEM_PROMPT` KV to source dynamic persona configuration.
 - [x] XSS hardening for AI markdown rendering
   - [x] Escape/sanitize HTML before regex markdown transforms in `iframe-generator.js` (`markdownToHtml`).
@@ -115,14 +115,14 @@ Legend: [ ] todo, [~] in-progress, [x] done
 ## Concrete implementation checklist (first passes)
 
 1) Correctness & security (ship immediately)
-- [ ] Implement `GET /api/welcome-message` in `src/index.js` and wire to persona + language.
-- [ ] Add a new KV binding `RESPONSE_CACHE_KV` in `wrangler.toml` and use it in `sendToAI`.
-- [ ] Sanitize AI output in `markdownToHtml` before formatting.
-- [ ] Replace `*` CORS with origin allowlist; validate `Origin`/`Referer` for `/api/*`.
+- [x] Implement `GET /api/welcome-message` in `src/index.js` and wire to persona + language.
+- [x] Add a new KV binding `RESPONSE_CACHE_KV` in `wrangler.toml` and use it in `sendToAI`.
+- [x] Sanitize AI output in `markdownToHtml` before formatting.
+- [x] Replace `*` CORS with origin allowlist; validate `Origin`/`Referer` for `/api/*`.
 
 2) Configuration MVP
-- [ ] Add API keys; validate on `/widget.js` and `/api/*` via query/header.
-- [ ] Persist dynamic config + persona in `SYSTEM_PROMPT` KV.
+- [x] Add API keys; validate on `/widget.js` and `/api/*` via query/header.
+- [x] Persist dynamic config + persona in `SYSTEM_PROMPT` KV.
 
 3) Performance & UX
 - [ ] KV-backed cache with configurable TTL; keep memory LRU hot cache.

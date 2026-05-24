@@ -20,6 +20,7 @@ id = "c5b17d99100540cab8837900b61d9c76"
 binding = "RATE_LIMITER_KV"
 id = "efe51f08b6734a86bb39c71b10cf0da4"
 
-# [[kv_namespaces]]
-# binding = "KV"
-# id = "YOUR_REAL_KV_NAMESPACE_ID_HERE"  # Replace with real KV namespace ID
+[[kv_namespaces]]
+binding = "RESPONSE_CACHE_KV"
+preview_id = "cache-preview-1234"
+id = "3373297a3061410a8e2da48c59128d39"
