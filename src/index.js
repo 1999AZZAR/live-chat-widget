@@ -499,7 +499,7 @@ export default {
       if (!origin) return false;
 
       // For a live chat widget, allow all origins by default
-      // In production, this could be made configurable per tenant
+      // In production, this could be made dynamically configurable
       return true;
     }
 
@@ -555,7 +555,7 @@ export default {
     let rateLimitExceeded = false;
     let retryAfterSeconds = 60; // Default retry after time
 
-    // Extract customer identifier (API key, tenant ID, etc.)
+    // Extract customer identifier (API key, user ID, etc.)
     const customerKey = request.headers.get('Authorization')?.replace('Bearer ', '') ||
                        request.headers.get('X-API-Key') ||
                        url.searchParams.get('api_key') ||
@@ -804,6 +804,8 @@ export default {
     }
   }
 }
+
+ 
 
  
 

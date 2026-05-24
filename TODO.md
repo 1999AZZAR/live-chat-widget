@@ -1,6 +1,6 @@
-# Live Chat Widget – Product & Engineering Roadmap (SaaS)
+# Live Chat Widget – Product & Engineering Roadmap
 
-This document lists concrete, prioritized improvements to make the widget more reliable, secure, scalable, and SaaS-ready. Tasks are grouped by priority and area. Use this as the single source of truth for planning and execution.
+This document lists concrete, prioritized improvements to make the widget more reliable, secure, scalable, and production-ready. Tasks are grouped by priority and area. Use this as the single source of truth for planning and execution.
 
 Legend: [ ] todo, [~] in-progress, [x] done
 
@@ -11,31 +11,31 @@ Legend: [ ] todo, [~] in-progress, [x] done
 - [ ] Bindings and config parity
   - [x] Add a dedicated KV namespace for response cache (code expects `env.KV`; `wrangler.toml` only defines `SYSTEM_PROMPT` and `RATE_LIMITER_KV`).
   - [ ] Create real KV namespace and replace placeholder ID in `wrangler.toml` to enable KV caching.
-  - [ ] Use `SYSTEM_PROMPT` KV to source persona per tenant (see P1 multi-tenant).
+  - [ ] Use `SYSTEM_PROMPT` KV to source dynamic persona configuration.
 - [x] XSS hardening for AI markdown rendering
   - [x] Escape/sanitize HTML before regex markdown transforms in `iframe-generator.js` (`markdownToHtml`).
   - [x] Add allowlist for links; strip scripts/data URIs; consider a lightweight sanitizer.
 - [x] CORS and embed hardening
-  - [x] Replace `Access-Control-Allow-Origin: *` with allowlist of customer origins (configurable per tenant) for API routes.
+  - [x] Replace `Access-Control-Allow-Origin: *` with allowlist of permitted origins for API routes.
   - [x] Validate `Origin`/`Referer` on `/api/*` to block direct abuse.
 - [x] Rate limiting resilience
-  - [x] Add customer-level throttles (per API key/tenant) in addition to IP (`RATE_LIMITER_KV`).
+  - [x] Add API key throttles in addition to IP (`RATE_LIMITER_KV`).
   - [x] Return precise `Retry-After` seconds based on window remainder.
 - [x] Logging hygiene
   - [x] Guard verbose logs behind `DEBUG` flag; avoid logging full message bodies in production.
 - [x] Model stop sequences sanity
   - [x] Revisit `stop_sequences: ['\n\n', ']', '```']` to avoid truncating valid content (e.g., code blocks, lists).
 
-## P1 — Multi-tenant SaaS readiness
+## P1 — Dynamic Configuration
 
-- [ ] Tenant identification and auth
-  - [ ] Support tenant via API key or signed embed token on `GET /widget.js` and `/api/*`.
-  - [ ] Add per-tenant config: theme defaults, language fallback, rate-limit tier, model, temperature.
+- [ ] Widget Authentication
+  - [ ] Support auth via API key or signed embed token on `GET /widget.js` and `/api/*`.
+  - [ ] Add dynamic config: theme defaults, language fallback, rate-limit tier, model, temperature.
 - [ ] Config storage
-  - [ ] Use `SYSTEM_PROMPT` KV (or D1) for tenant persona/system prompt and `crawl.txt` equivalents.
-  - [ ] Add Admin API (protected) to update persona/config and rotate keys.
-- [ ] Onboarding UX
-  - [ ] Generate unique embed snippet per tenant including SRI and version pin.
+  - [ ] Use `SYSTEM_PROMPT` KV (or D1) for dynamic persona/system prompt and knowledge equivalents.
+  - [ ] Add Admin API (protected) to update persona/config and manage keys.
+- [ ] Setup UX
+  - [ ] Generate unique embed snippet including SRI and version pin.
   - [ ] Minimal hosted admin page to manage settings and copy snippets.
 
 ## P1 — Reliability and performance
@@ -59,7 +59,7 @@ Legend: [ ] todo, [~] in-progress, [x] done
 - [ ] Iframe sandboxing
   - [ ] Add `sandbox` and narrow `allow` attributes on the embed iframe.
 - [ ] Abuse prevention
-  - [ ] Optional Turnstile challenge for high-risk tenants or burst traffic.
+  - [ ] Optional Turnstile challenge for high-risk IP or burst traffic.
 - [ ] Data handling
   - [ ] Configurable redaction of PII in logs; add Data Processing Notes in docs.
 
@@ -75,7 +75,7 @@ Legend: [ ] todo, [~] in-progress, [x] done
 - [ ] Error boundaries
   - [ ] Centralize error responses; consistent JSON schema with error codes.
 - [ ] Observability
-  - [ ] Structured logs (requestId, tenantId, route, latency). Optional Sentry/HyperDX.
+  - [ ] Structured logs (requestId, route, latency). Optional Sentry/HyperDX.
 
 ## P2 — Product and UX
 
@@ -102,13 +102,13 @@ Legend: [ ] todo, [~] in-progress, [x] done
 ## P3 — Roadmap (nice-to-have / strategic)
 
 - [ ] Model routing
-  - [ ] Per-tenant model selection and automatic fallback on errors.
+  - [ ] Configurable model selection and automatic fallback on errors.
 - [ ] Analytics
   - [ ] Cloudflare Analytics Engine or Logs-based events (open, send, token usage, errors) with privacy.
 - [ ] Cost controls
-  - [ ] Daily/monthly budget caps per tenant; graceful degrade to smaller model.
+  - [ ] Daily/monthly token usage caps; graceful degrade to smaller model.
 - [ ] RAG hooks
-  - [ ] Pluggable knowledge sources (KV/D1/R2) with per-tenant indexing.
+  - [ ] Pluggable knowledge sources (KV/D1/R2) with dynamic indexing.
 - [ ] Export/transcript
   - [ ] Allow user to export conversation as text/markdown.
 
@@ -122,9 +122,9 @@ Legend: [ ] todo, [~] in-progress, [x] done
 - [ ] Sanitize AI output in `markdownToHtml` before formatting.
 - [ ] Replace `*` CORS with origin allowlist; validate `Origin`/`Referer` for `/api/*`.
 
-2) Multi-tenant MVP
-- [ ] Add tenant API keys; validate on `/widget.js` and `/api/*` via query/header.
-- [ ] Persist tenant config + persona in `SYSTEM_PROMPT` KV under `tenant:{id}:config`.
+2) Dynamic Configuration MVP
+- [ ] Add API keys; validate on `/widget.js` and `/api/*` via query/header.
+- [ ] Persist dynamic config + persona in `SYSTEM_PROMPT` KV.
 - [ ] Provide a basic Admin API (bearer protected) to set persona and theme defaults.
 
 3) Performance & UX
@@ -137,7 +137,7 @@ Legend: [ ] todo, [~] in-progress, [x] done
 - [ ] Miniflare integration tests for `/api/chat`, `/widget.js`, `/widget-iframe`.
 
 5) Observability
-- [ ] Add structured logs with requestId/tenantId and latency metrics; optional Sentry.
+- [ ] Add structured logs with requestId and latency metrics; optional Sentry.
 
 ---
 
@@ -148,5 +148,5 @@ Legend: [ ] todo, [~] in-progress, [x] done
 - Markdown rendering currently does not escape HTML; potential XSS if model outputs HTML.
 - `stop_sequences` likely too aggressive and may truncate valid content.
 - Theming detector includes a `drawWindow` attempt (non-standard); it’s wrapped in try/catch, but we should avoid heavy operations by default.
-- Persona and crawl resources are static files; move to per-tenant KV for SaaS.
-- CORS is `*`; switch to allowlist per tenant.
+- Persona and knowledge resources are static files; move to KV for dynamic updates.
+- CORS is `*`; switch to configurable allowlist.
