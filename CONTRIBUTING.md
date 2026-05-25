@@ -65,17 +65,21 @@ Before contributing, ensure you have:
 The project supports two development modes:
 
 #### Remote Mode (Recommended)
+
 ```bash
 npm run dev
 ```
+
 - Full Cloudflare integration
 - AI and KV storage access
 - End-to-end testing capabilities
 
 #### Local Mode
+
 ```bash
 npm run dev -- --local
 ```
+
 - No external dependencies
 - UI testing only
 - Faster startup
@@ -92,6 +96,7 @@ Create a `.env` file for local configuration:
 ### Testing Environment
 
 Access local development:
+
 - **Worker URL:** `http://127.0.0.1:8787`
 - **Widget Script:** `http://127.0.0.1:8787/widget.js`
 - **API Endpoints:** `http://127.0.0.1:8787/api/*`
@@ -118,6 +123,7 @@ type(scope): description
 ```
 
 Types:
+
 - `feat`: New features
 - `fix`: Bug fixes
 - `docs`: Documentation
@@ -127,6 +133,7 @@ Types:
 - `chore`: Maintenance
 
 Examples:
+
 ```
 feat(widget): add dark mode support
 fix(api): resolve rate limiting bug
@@ -136,11 +143,13 @@ docs(readme): update installation instructions
 ### Pull Request Process
 
 1. **Create a branch:**
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
 2. **Make changes and test:**
+
    ```bash
    # Test locally
    npm run dev
@@ -154,12 +163,14 @@ docs(readme): update installation instructions
    - Add code comments for complex logic
 
 4. **Commit changes:**
+
    ```bash
    git add .
    git commit -m "feat(widget): add new feature"
    ```
 
 5. **Push and create PR:**
+
    ```bash
    git push origin feature/your-feature-name
    ```
@@ -218,11 +229,11 @@ src/
 
 ```javascript
 try {
-  const result = await riskyOperation();
-  return result;
+	const result = await riskyOperation();
+	return result;
 } catch (error) {
-  console.error('Operation failed:', error);
-  throw new Error(`Operation failed: ${error.message}`);
+	console.error('Operation failed:', error);
+	throw new Error(`Operation failed: ${error.message}`);
 }
 ```
 
@@ -263,15 +274,15 @@ tests/
 ```javascript
 // Example unit test
 describe('Chat API', () => {
-  test('should handle valid message', async () => {
-    const response = await sendMessage('Hello');
-    expect(response).toHaveProperty('response');
-    expect(typeof response.response).toBe('string');
-  });
+	test('should handle valid message', async () => {
+		const response = await sendMessage('Hello');
+		expect(response).toHaveProperty('response');
+		expect(typeof response.response).toBe('string');
+	});
 
-  test('should reject empty message', async () => {
-    await expect(sendMessage('')).rejects.toThrow('Message cannot be empty');
-  });
+	test('should reject empty message', async () => {
+		await expect(sendMessage('')).rejects.toThrow('Message cannot be empty');
+	});
 });
 ```
 
@@ -303,7 +314,7 @@ describe('Chat API', () => {
  * @returns {Promise<Object>} Response object with message and metadata
  */
 async function processChatMessage(message, history = [], options = {}) {
-  // Implementation
+	// Implementation
 }
 ```
 
@@ -324,21 +335,25 @@ Use this template for pull requests:
 
 ```markdown
 ## Description
+
 Brief description of changes
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
 - [ ] Documentation update
 
 ## Testing
+
 - [ ] Unit tests added/updated
 - [ ] Integration tests added/updated
 - [ ] Manual testing completed
 - [ ] Cross-browser testing completed
 
 ## Checklist
+
 - [ ] Code follows style guidelines
 - [ ] Documentation updated
 - [ ] Tests pass
@@ -346,6 +361,7 @@ Brief description of changes
 - [ ] Ready for review
 
 ## Related Issues
+
 Closes #123
 ```
 

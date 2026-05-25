@@ -9,8 +9,6 @@ enabled = true
 [vars]
 DEBUG = false
 
-[ai]
-binding = "AI"
 
 [[kv_namespaces]]
 binding = "SYSTEM_PROMPT"

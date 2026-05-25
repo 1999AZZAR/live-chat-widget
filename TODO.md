@@ -114,38 +114,39 @@ Legend: [ ] todo, [~] in-progress, [x] done
 
 ## Concrete implementation checklist (first passes)
 
-1) Correctness & security (ship immediately)
+1. Correctness & security (ship immediately)
+
 - [x] Implement `GET /api/welcome-message` in `src/index.js` and wire to persona + language.
 - [x] Add a new KV binding `RESPONSE_CACHE_KV` in `wrangler.toml` and use it in `sendToAI`.
 - [x] Sanitize AI output in `markdownToHtml` before formatting.
 - [x] Replace `*` CORS with origin allowlist; validate `Origin`/`Referer` for `/api/*`.
 
-2) Configuration MVP
+2. Configuration MVP
+
 - [x] Add API keys; validate on `/widget.js` and `/api/*` via query/header.
 - [x] Persist dynamic config + persona in `SYSTEM_PROMPT` KV.
 
 3) Performance & UX
-- [ ] KV-backed cache with configurable TTL; keep memory LRU hot cache.
-- [ ] (Optional) Streaming responses and incremental render.
-- [ ] Make advanced theme detection opt-in; default to lightweight detection.
+- [x] KV-backed cache with configurable TTL; keep memory LRU hot cache.
+- [ ] (Optional) Streaming responses and incremental render. (Deferred for simplicity)
+- [x] Make advanced theme detection opt-in; default to lightweight detection.
 
 4) DX & QA
-- [ ] Add ESLint/Prettier; set up CI with lint/test; migrate critical files to TS.
-- [ ] Miniflare integration tests for `/api/chat`, `/widget.js`, `/widget-iframe`.
+- [x] Add ESLint/Prettier; set up CI with lint/test; migrate critical files to TS.
+- [x] Miniflare integration tests for `/api/chat`, `/widget.js`, `/widget-iframe`.
 
 5) Observability
-- [ ] Add structured logs with requestId and latency metrics; optional Sentry.
+- [x] Add structured logs with requestId and latency metrics; optional Sentry.
 
 ---
 
 ## Notes from current code audit
 
-- `README.md` documents `GET /api/welcome-message`, but handler is missing.
-- `wrangler.toml` defines `AI`, `SYSTEM_PROMPT`, `RATE_LIMITER_KV`; no generic `KV` used by `sendToAI` cache wrapper.
-- Markdown rendering currently does not escape HTML; potential XSS if model outputs HTML.
-- `stop_sequences` likely too aggressive and may truncate valid content.
-- Theming detector includes a `drawWindow` attempt (non-standard); it’s wrapped in try/catch, but we should avoid heavy operations by default.
+- [x] `README.md` documents `GET /api/welcome-message`, but handler is missing. (Added)
+- [x] Markdown rendering currently does not escape HTML; potential XSS if model outputs HTML. (Fixed with sanitizer)
+- [x] Project migrated to TypeScript for better DX and type safety.
+- [x] Integration tests added using Vitest and Miniflare.
 - Persona and knowledge resources are static files; move to KV for dynamic updates.
 - CORS is `*`; switch to configurable allowlist.
-files; move to KV for dynamic updates.
+  files; move to KV for dynamic updates.
 - CORS is `*`; switch to configurable allowlist.

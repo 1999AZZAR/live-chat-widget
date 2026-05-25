@@ -89,6 +89,7 @@ npm install -g wrangler
 ```
 
 Verify installation:
+
 ```bash
 wrangler --version
 ```
@@ -142,12 +143,14 @@ npm run deploy
 ```
 
 The deployment process will:
+
 - Bundle your code and dependencies
 - Upload to Cloudflare's servers
 - Configure the worker with the specified bindings
 - Provide a deployment URL
 
 Upon successful deployment, you'll receive a URL like:
+
 ```
 https://live-chat-widget.your-account.workers.dev
 ```
@@ -161,17 +164,17 @@ After deployment, add the widget to your website by including a single script ta
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Website</title>
-</head>
-<body>
-    <!-- Your website content -->
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Your Website</title>
+	</head>
+	<body>
+		<!-- Your website content -->
 
-    <!-- Live Chat Widget -->
-    <script src="https://live-chat-widget.your-account.workers.dev/widget.js"></script>
-</body>
+		<!-- Live Chat Widget -->
+		<script src="https://live-chat-widget.your-account.workers.dev/widget.js"></script>
+	</body>
 </html>
 ```
 
@@ -180,36 +183,39 @@ After deployment, add the widget to your website by including a single script ta
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Website</title>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Your Website</title>
 
-    <!-- Define CSS variables for theming -->
-    <style>
-        :root {
-            --primary-color: #007bff;
-            --background: #ffffff;
-            --text-color: #333333;
-            --border-radius: 12px;
-        }
+		<!-- Define CSS variables for theming -->
+		<style>
+			:root {
+				--primary-color: #007bff;
+				--background: #ffffff;
+				--text-color: #333333;
+				--border-radius: 12px;
+			}
 
-        /* Dark mode variables */
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --primary-color: #4dabf7;
-                --background: #1a1a1a;
-                --text-color: #ffffff;
-            }
-        }
-    </style>
-</head>
-<body>
-    <!-- Your website content -->
+			/* Dark mode variables */
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--primary-color: #4dabf7;
+					--background: #1a1a1a;
+					--text-color: #ffffff;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<!-- Your website content -->
 
-    <!-- Live Chat Widget with forced light theme -->
-    <script src="https://live-chat-widget.your-account.workers.dev/widget.js" data-color="light"></script>
-</body>
+		<!-- Live Chat Widget with forced light theme -->
+		<script
+			src="https://live-chat-widget.your-account.workers.dev/widget.js"
+			data-color="light"
+		></script>
+	</body>
 </html>
 ```
 
@@ -263,20 +269,20 @@ You can run the worker locally with Wrangler and test the widget on a simple HTM
    ```html
    <!doctype html>
    <html>
-   <head>
-     <meta charset="utf-8" />
-     <meta name="viewport" content="width=device-width, initial-scale=1" />
-     <title>Widget Local Test</title>
-     <!-- Optional Tailwind CDN to try Tailwind/DaisyUI detection -->
-     <script src="https://cdn.tailwindcss.com"></script>
-   </head>
-   <body class="min-h-screen bg-gray-50 p-8">
-     <h1 class="text-2xl font-bold mb-4">Live Chat Widget - Local Test</h1>
-     <p class="mb-8">This page loads the widget from your local Cloudflare Worker.</p>
+   	<head>
+   		<meta charset="utf-8" />
+   		<meta name="viewport" content="width=device-width, initial-scale=1" />
+   		<title>Widget Local Test</title>
+   		<!-- Optional Tailwind CDN to try Tailwind/DaisyUI detection -->
+   		<script src="https://cdn.tailwindcss.com"></script>
+   	</head>
+   	<body class="min-h-screen bg-gray-50 p-8">
+   		<h1 class="text-2xl font-bold mb-4">Live Chat Widget - Local Test</h1>
+   		<p class="mb-8">This page loads the widget from your local Cloudflare Worker.</p>
 
-     <!-- Load widget from local worker; add data-color to force theme if needed -->
-     <script src="http://127.0.0.1:8787/widget.js" data-color="auto"></script>
-   </body>
+   		<!-- Load widget from local worker; add data-color to force theme if needed -->
+   		<script src="http://127.0.0.1:8787/widget.js" data-color="auto"></script>
+   	</body>
    </html>
    ```
 
@@ -319,24 +325,24 @@ The widget intelligently determines its theme by checking sources in a specific 
 
 1.  **`data-color` Attribute (Highest Priority):**
     You can force a specific theme by adding the `data-color` attribute to the script tag. This is the easiest and most direct way to set a theme.
-    -   Force dark mode:
-        ```html
-        <script src=".../widget.js" data-color="dark"></script>
-        ```
-    -   Force light mode:
-        ```html
-        <script src=".../widget.js" data-color="light"></script>
-        ```
+    - Force dark mode:
+      ```html
+      <script src=".../widget.js" data-color="dark"></script>
+      ```
+    - Force light mode:
+      ```html
+      <script src=".../widget.js" data-color="light"></script>
+      ```
 
 2.  **Host Page Theme Detection (Automatic):**
     If `data-color` is not set, the widget attempts to detect the theme from your website's existing styles. It looks for:
-    -   **Background Color of Major Containers:** Inspects visible `main`, `#root`, `#app`, `#__next`, etc. to determine light/dark based on luminance.
-    -   **CSS Variables:** Reads standard CSS variables like `--primary-color`, `--background`, `--text-color`, etc., to match your site's branding.
-    -   **Tailwind/DaisyUI Support:**
-        - Detects Tailwind `dark` mode class on `html`/`body`.
-        - Picks non-neutral Tailwind colors from elements with `bg-*` or `text-*` classes.
-        - Probes DaisyUI `btn btn-primary` to infer `primary-color` and `on-primary`.
-    -   **Inferred Styles:** If variables aren't present, it infers colors from prominent elements like buttons and links.
+    - **Background Color of Major Containers:** Inspects visible `main`, `#root`, `#app`, `#__next`, etc. to determine light/dark based on luminance.
+    - **CSS Variables:** Reads standard CSS variables like `--primary-color`, `--background`, `--text-color`, etc., to match your site's branding.
+    - **Tailwind/DaisyUI Support:**
+      - Detects Tailwind `dark` mode class on `html`/`body`.
+      - Picks non-neutral Tailwind colors from elements with `bg-*` or `text-*` classes.
+      - Probes DaisyUI `btn btn-primary` to infer `primary-color` and `on-primary`.
+    - **Inferred Styles:** If variables aren't present, it infers colors from prominent elements like buttons and links.
 
 3.  **OS Preference (Fallback):**
     If no theme can be determined from the methods above, the widget will fall back to the user's operating system preference (`prefers-color-scheme`).
@@ -345,24 +351,25 @@ The widget intelligently determines its theme by checking sources in a specific 
 
 For seamless integration, define CSS variables in your site's stylesheet. The widget automatically detects and uses these variables.
 
-| CSS Variable       | Description                                  | Default |
-| ------------------ | -------------------------------------------- | ------- |
-| `--primary-color`  | Main accent color for buttons and user messages | Auto-detected |
-| `--on-primary`     | Text color for elements with primary background | Auto-calculated |
-| `--background`     | Chat window background color                 | Auto-detected |
-| `--text-color`     | Primary text color                           | Auto-detected |
-| `--border-radius`  | Border radius for bubbles and inputs         | 12px |
-| `--font-family`    | Font family for widget text                  | System font |
+| CSS Variable      | Description                                     | Default         |
+| ----------------- | ----------------------------------------------- | --------------- |
+| `--primary-color` | Main accent color for buttons and user messages | Auto-detected   |
+| `--on-primary`    | Text color for elements with primary background | Auto-calculated |
+| `--background`    | Chat window background color                    | Auto-detected   |
+| `--text-color`    | Primary text color                              | Auto-detected   |
+| `--border-radius` | Border radius for bubbles and inputs            | 12px            |
+| `--font-family`   | Font family for widget text                     | System font     |
 
 **Example:**
+
 ```css
 :root {
-  --primary-color: #007bff;
-  --on-primary: #ffffff;
-  --background: #f8f9fa;
-  --text-color: #212529;
-  --border-radius: 12px;
-  --font-family: 'Inter', sans-serif;
+	--primary-color: #007bff;
+	--on-primary: #ffffff;
+	--background: #f8f9fa;
+	--text-color: #212529;
+	--border-radius: 12px;
+	--font-family: 'Inter', sans-serif;
 }
 ```
 
@@ -371,11 +378,13 @@ For seamless integration, define CSS variables in your site's stylesheet. The wi
 The widget includes special detection for popular frameworks:
 
 **Tailwind CSS:**
+
 - Detects `bg-*` and `text-*` classes for color inference
 - Recognizes `dark:` mode classes
 - Automatically switches between light and dark themes
 
 **DaisyUI:**
+
 - Probes for `btn btn-primary` elements to detect primary colors
 - Inherits color scheme from DaisyUI components
 
@@ -423,18 +432,19 @@ Send a POST request to `/api/chat` with the following JSON payload:
 
 ```json
 {
-  "message": "User message here",
-  "history": [
-    {"role": "user", "content": "Previous user message"},
-    {"role": "assistant", "content": "Previous AI response"}
-  ]
+	"message": "User message here",
+	"history": [
+		{ "role": "user", "content": "Previous user message" },
+		{ "role": "assistant", "content": "Previous AI response" }
+	]
 }
 ```
 
 **Response:**
+
 ```json
 {
-  "response": "AI response text"
+	"response": "AI response text"
 }
 ```
 
@@ -445,18 +455,21 @@ Send a POST request to `/api/chat` with the following JSON payload:
 Set language through multiple methods:
 
 1. **Global Variable:**
+
    ```javascript
    window.AZZAR_CHAT_CONFIG = { lang: 'id' };
    ```
 
 2. **Script Attribute:**
+
    ```html
    <script src="/widget.js" data-azzar-lang="id"></script>
    ```
 
 3. **HTML Lang Attribute:**
+
    ```html
-   <html lang="id">
+   <html lang="id"></html>
    ```
 
 4. **Runtime Change:**
@@ -467,10 +480,12 @@ Set language through multiple methods:
 #### Rate Limiting
 
 The API implements dual-layer rate limiting:
+
 - **IP-based**: 100 requests per minute per IP
 - **Customer-based**: 30 requests per minute per API key
 
 Rate limit headers are included in responses:
+
 - `X-RateLimit-Remaining`: Remaining requests
 - `Retry-After`: Seconds until reset (when exceeded)
 
@@ -494,6 +509,7 @@ To customize the AI's personality, knowledge, and behavior:
 2. Deploy changes: `npm run deploy`
 
 The AI will use the new persona for all conversations. The persona file includes:
+
 - Personality traits and communication style
 - Technical expertise and knowledge areas
 - Response guidelines and limitations
@@ -501,6 +517,7 @@ The AI will use the new persona for all conversations. The persona file includes
 ### Rate Calculation (for FREA)
 
 The AI includes built-in knowledge of Azzar's rate calculation methodology:
+
 - Hourly rates from $20-$35 based on project size
 - Consultation fees ($70-$120) every 30 hours
 - Payment plans with 2-3 installment options
@@ -551,17 +568,17 @@ The worker uses the following environment variables and bindings:
 
 #### Cloudflare Bindings
 
-| Binding | Type | Purpose |
-|---------|------|---------|
-| `AI` | AI | Llama 3.1 model for chat responses |
-| `SYSTEM_PROMPT` | KV | Persistent storage for system prompts |
-| `RATE_LIMITER_KV` | KV | Rate limiting data storage |
+| Binding           | Type | Purpose                               |
+| ----------------- | ---- | ------------------------------------- |
+| `AI`              | AI   | Llama 3.1 model for chat responses    |
+| `SYSTEM_PROMPT`   | KV   | Persistent storage for system prompts |
+| `RATE_LIMITER_KV` | KV   | Rate limiting data storage            |
 
 #### Configuration Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DEBUG` | `false` | Enable debug logging and additional error information |
+| Variable | Default | Description                                           |
+| -------- | ------- | ----------------------------------------------------- |
+| `DEBUG`  | `false` | Enable debug logging and additional error information |
 
 ### Local Development
 
@@ -570,17 +587,21 @@ The worker uses the following environment variables and bindings:
 The project supports two development modes:
 
 **Remote Mode (Recommended):**
+
 ```bash
 npm run dev
 ```
+
 - Full Cloudflare integration with AI and KV bindings
 - End-to-end functionality testing
 - Requires active internet connection
 
 **Local Mode:**
+
 ```bash
 npm run dev -- --local
 ```
+
 - Runs without Cloudflare services
 - Useful for UI testing and development
 - AI responses will not work
@@ -588,6 +609,7 @@ npm run dev -- --local
 #### Development Workflow
 
 1. **Start Development Server:**
+
    ```bash
    npm run dev
    ```
@@ -600,15 +622,15 @@ npm run dev -- --local
    ```html
    <!DOCTYPE html>
    <html>
-   <head>
-       <title>Widget Test</title>
-       <meta charset="UTF-8">
-       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   </head>
-   <body>
-       <h1>Live Chat Widget Test</h1>
-       <script src="http://127.0.0.1:8787/widget.js"></script>
-   </body>
+   	<head>
+   		<title>Widget Test</title>
+   		<meta charset="UTF-8" />
+   		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   	</head>
+   	<body>
+   		<h1>Live Chat Widget Test</h1>
+   		<script src="http://127.0.0.1:8787/widget.js"></script>
+   	</body>
    </html>
    ```
 
@@ -700,6 +722,7 @@ For production deployments, ensure:
 ### Caching Strategy
 
 The widget uses multiple caching layers:
+
 - **LRU Memory Cache**: Recent conversations (1 hour TTL)
 - **KV Cache**: Persistent storage for API responses
 - **Response Deduplication**: Prevents repetitive AI output
@@ -707,12 +730,14 @@ The widget uses multiple caching layers:
 ### Rate Limiting
 
 Dual-layer protection:
+
 - IP-based: 100 requests/minute
 - Customer-based: 30 requests/minute per API key
 
 ### Bundle Size
 
 The widget is optimized for fast loading:
+
 - Gzipped widget.js: ~35KB
 - Minimal external dependencies
 - Lazy-loaded components
@@ -823,6 +848,7 @@ We welcome contributions to improve the Live Chat Widget. Please follow these gu
    - Clone your fork: `git clone https://github.com/your-username/live-chat-widget.git`
 
 2. **Set Up Development Environment**
+
    ```bash
    cd live-chat-widget
    npm install
@@ -837,18 +863,21 @@ We welcome contributions to improve the Live Chat Widget. Please follow these gu
 ### Development Guidelines
 
 #### Code Style
+
 - Use consistent indentation (2 spaces)
 - Add JSDoc comments for functions
 - Follow existing naming conventions
 - Keep functions focused and single-purpose
 
 #### Testing
+
 - Test your changes locally before submitting
 - Verify widget functionality in different browsers
 - Test with both light and dark themes
 - Check mobile responsiveness
 
 #### Commit Messages
+
 - Use clear, descriptive commit messages
 - Start with a verb (Add, Fix, Update, Remove)
 - Keep first line under 50 characters
@@ -857,6 +886,7 @@ We welcome contributions to improve the Live Chat Widget. Please follow these gu
 ### Submitting Changes
 
 1. **Ensure Code Quality**
+
    ```bash
    # Run linting (if available)
    npm run lint
@@ -878,16 +908,19 @@ We welcome contributions to improve the Live Chat Widget. Please follow these gu
 ### Types of Contributions
 
 **Bug Fixes:**
+
 - Fix reported issues
 - Improve error handling
 - Enhance stability
 
 **Features:**
+
 - New functionality
 - UI/UX improvements
 - Performance enhancements
 
 **Documentation:**
+
 - Improve existing docs
 - Add examples and tutorials
 - Translate documentation
@@ -924,4 +957,4 @@ For support and questions:
 
 ---
 
-*Built with Cloudflare Workers and Llama 3.1* 
+_Built with Cloudflare Workers and Llama 3.1_
