@@ -1,4 +1,4 @@
-export function generateWidgetJS(origin: string): string {
+export function generateWidgetJS(origin: string) {
 	return `
   // Live Chat Widget
   (function() {
@@ -150,8 +150,8 @@ export function generateWidgetJS(origin: string): string {
 
             // Draw the visible part of the page onto the canvas
             // Note: drawWindow is a non-standard Firefox-only feature, often restricted by security.
-            if (typeof (context as any).drawWindow === 'function') {
-              (context as any).drawWindow(window, 0, 0, width, height, 'rgb(255,255,255)');
+            if (typeof (context).drawWindow === 'function') {
+              (context).drawWindow(window, 0, 0, width, height, 'rgb(255,255,255)');
             } else {
               throw new Error("drawWindow is not supported in this browser");
             }
@@ -166,7 +166,7 @@ export function generateWidgetJS(origin: string): string {
               { x: width - 50, y: height - 50 }
             ];
 
-            const colorCounts: Record<string, number> = {};
+            const colorCounts = {};
             let maxCount = 0;
             let dominantColor = 'rgb(255, 255, 255)'; // Default to white
 
@@ -216,7 +216,7 @@ export function generateWidgetJS(origin: string): string {
         // Tailwind dark mode signal
         const isTailwindDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
         if (isTailwindDark) {
-          (detectedTheme as any)['detected-theme-mode'] = 'dark';
+          (detectedTheme)['detected-theme-mode'] = 'dark';
         }
         // DaisyUI theme name (informational)
         const daisyTheme = document.documentElement.getAttribute('data-theme') || document.body.getAttribute('data-theme') || null;
@@ -225,7 +225,7 @@ export function generateWidgetJS(origin: string): string {
         if (mainBgColor) {
             if (!detectedTheme['background']) detectedTheme['background'] = mainBgColor;
             const luminance = getLuminance(mainBgColor);
-            (detectedTheme as any)['detected-theme-mode'] = luminance > 0.5 ? 'light' : 'dark';
+            (detectedTheme)['detected-theme-mode'] = luminance > 0.5 ? 'light' : 'dark';
         }
 
         // Priority 2: Infer other styles if variables are missing
@@ -236,7 +236,7 @@ export function generateWidgetJS(origin: string): string {
 
         // Infer accent colors with Tailwind/DaisyUI support
         if (!detectedTheme['primary-color']) {
-          let primaryElement: any = null;
+          let primaryElement = null;
 
           // DaisyUI probe: hidden btn btn-primary
           try {
@@ -299,7 +299,7 @@ export function generateWidgetJS(origin: string): string {
           if (!detectedTheme['primary-color']) {
             const link = document.querySelector('a');
             if (link) {
-              const c = getComputedStyle(link as any).color;
+              const c = getComputedStyle(link).color;
               if (c && c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') {
                 detectedTheme['primary-color'] = c;
                 detectedTheme['on-primary'] = getContrastingTextColor(c);
@@ -326,16 +326,16 @@ export function generateWidgetJS(origin: string): string {
 
         // Clean up theme object, removing empty or transparent values
         Object.keys(detectedTheme).forEach(key => {
-          const value = (detectedTheme as any)[key];
+          const value = (detectedTheme)[key];
           if (!value || value === 'rgba(0, 0, 0, 0)') {
-            delete (detectedTheme as any)[key];
+            delete (detectedTheme)[key];
           }
         });
 
         return detectedTheme;
       }
 
-      const hostTheme: any = detectHostTheme();
+      const hostTheme = detectHostTheme();
       
       // The final theme prioritizes the script tag, then the page's detected mode, then the OS mode.
       const finalTheme = scriptTheme || hostTheme['detected-theme-mode'] || osTheme;
@@ -343,7 +343,7 @@ export function generateWidgetJS(origin: string): string {
       // Step 3: Build the iframe URL with theme and color parameters
       const queryParams = new URLSearchParams({ theme: finalTheme });
       for (const [key, value] of Object.entries(hostTheme)) {
-        queryParams.set(key, value as string);
+        queryParams.set(key, value);
       }
       // Ensure latest iframe loads by adding a cache-busting parameter
       queryParams.set('v', String(Date.now()));
