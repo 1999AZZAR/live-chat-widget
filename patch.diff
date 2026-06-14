@@ -1,0 +1,154 @@
+diff --git a/src/index.js b/src/index.js
+index ebd6b40..90d6f67 100644
+--- a/src/index.js
++++ b/src/index.js
+@@ -7,20 +7,34 @@ import crawlFileContent from './crawl.txt';
+ 
+ // --- Pre-cache persona files on startup ---
+ const systemPromptKey = 'system:prompt';
+-function getSystemPrompt() {
++async function getSystemPrompt(env) {
+   if (memoryCache.has(systemPromptKey)) {
+     return memoryCache.get(systemPromptKey);
+   }
++
++  let promptContent = systemInstruction;
++
++  // Try to load from KV if available
++  if (env && env.SYSTEM_PROMPT) {
++    try {
++      const kvPrompt = await env.SYSTEM_PROMPT.get('persona:default');
++      if (kvPrompt) {
++        promptContent = kvPrompt;
++        if (env.DEBUG) console.log('Successfully loaded persona from SYSTEM_PROMPT KV');
++      }
++    } catch (error) {
++      console.error('Error fetching persona from KV:', error);
++    }
++  }
++
+   const crawlLinks = crawlFileContent.split('\n').filter(line => line.trim().length > 0);
+-  let enhancedPrompt = systemInstruction;
++  let enhancedPrompt = promptContent;
+   if (crawlLinks.length > 0) {
+     enhancedPrompt += '\n\nAdditional resources about me:\n' + crawlLinks.join('\n');
+   }
+   memoryCache.set(systemPromptKey, enhancedPrompt);
+   return enhancedPrompt;
+ }
+-// Immediately cache the prompt when the worker initializes
+-getSystemPrompt();
+ 
+ 
+ // Optional: Initialize a KV-based cache if available
+@@ -254,14 +268,14 @@ function deduplicateResponse(text) {
+ 
+ // Function to initialize KV cache if available
+ async function initializeKVCache(env) {
+-  if (env && env.KV) {
++  if (env && env.RESPONSE_CACHE_KV) {
+     if (env.DEBUG) console.log('Initializing KV cache');
+ 
+     // Create a more robust KV wrapper with caching functionality
+     kvCache = {
+       async get(key) {
+         try {
+-          const value = await env.KV.get(key);
++          const value = await env.RESPONSE_CACHE_KV.get(key);
+           if (value) {
+             return JSON.parse(value);
+           }
+@@ -274,7 +288,7 @@ async function initializeKVCache(env) {
+ 
+       async set(key, value, ttl = 86400) { // Default TTL: 1 day
+         try {
+-          await env.KV.put(key, JSON.stringify(value), { expirationTtl: ttl });
++          await env.RESPONSE_CACHE_KV.put(key, JSON.stringify(value), { expirationTtl: ttl });
+         } catch (error) {
+           console.error('Error setting KV cache:', error);
+         }
+@@ -282,7 +296,7 @@ async function initializeKVCache(env) {
+ 
+       async has(key) {
+         try {
+-          const value = await env.KV.get(key);
++          const value = await env.RESPONSE_CACHE_KV.get(key);
+           return value != null;
+         } catch (error) {
+           console.error('Error checking KV cache:', error);
+@@ -489,7 +503,7 @@ export default {
+     // Initialize KV cache if available
+     // Note: KV binding is commented out in wrangler.toml, so this won't run
+     // Uncomment and add real KV namespace ID when ready to enable KV caching
+-    // if (env && env.KV) {
++    // if (env && env.RESPONSE_CACHE_KV) {
+     //   await initializeKVCache(env);
+     // }
+ 
+@@ -538,8 +552,8 @@ export default {
+     const requestOrigin = validateApiRequestOrigin(request);
+     const corsHeaders = {
+       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+-      'Access-Control-Allow-Origin': '*', // Allow all origins for live chat widget
++      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
++      'Access-Control-Allow-Origin': requestOrigin || '*', // Enforce origin if present
+     };
+ 
+     // Handle CORS preflight requests first (quick return)
+@@ -556,10 +570,30 @@ export default {
+     let retryAfterSeconds = 60; // Default retry after time
+ 
+     // Extract customer identifier (API key, user ID, etc.)
+-    const customerKey = request.headers.get('Authorization')?.replace('Bearer ', '') ||
++    const providedApiKey = request.headers.get('Authorization')?.replace('Bearer ', '') ||
+                        request.headers.get('X-API-Key') ||
+-                       url.searchParams.get('api_key') ||
+-                       'anonymous';
++                       url.searchParams.get('api_key');
++                       
++    const customerKey = providedApiKey || 'anonymous';
++
++    // Optional API key protection for API routes
++    if (url.pathname.startsWith('/api/') && env.API_KEY && env.API_KEY.trim() !== '') {
++      // Split allowed keys by comma if multiple are provided
++      const allowedKeys = env.API_KEY.split(',').map(k => k.trim());
++      
++      if (!providedApiKey || !allowedKeys.includes(providedApiKey)) {
++        return new Response(JSON.stringify({ 
++          error: 'Unauthorized', 
++          message: 'Valid API key is required for this endpoint.' 
++        }), {
++          status: 401,
++          headers: {
++            'Content-Type': 'application/json',
++            ...corsHeaders
++          }
++        });
++      }
++    }
+ 
+     // Start rate limiting check in background
+     const rateLimitPromise = (async () => {
+@@ -704,8 +738,9 @@ export default {
+         }
+         
+         // --- Prepare messages array for the AI ---
++        const prompt = await getSystemPrompt(env);
+         const messages = [
+-          { role: 'system', content: getSystemPrompt() } // Use cached prompt
++          { role: 'system', content: prompt } // Use cached or KV prompt
+         ];
+ 
+         // Add history messages if available
+@@ -731,8 +766,9 @@ export default {
+       if (url.pathname === '/api/welcome-message' && request.method === 'GET') {
+         try {
+           // Create a simple welcome message using the AI
++          const prompt = await getSystemPrompt(env);
+           const messages = [
+-            { role: 'system', content: getSystemPrompt() + '\n\nPlease provide a brief, friendly welcome message introducing yourself as FREA, the AI assistant. Keep it concise and engaging.' }
++            { role: 'system', content: prompt + '\n\nPlease provide a brief, friendly welcome message introducing yourself as FREA, the AI assistant. Keep it concise and engaging.' }
+           ];
+ 
+           const welcomeMessage = await sendToAI(messages, env);
