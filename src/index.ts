@@ -38,6 +38,43 @@ async function getSystemPrompt(env: Env) {
 		} catch (error) {
 			console.error('Error fetching persona from KV:', error);
 		}
+
+		// Inject Azzar's live project knowledge (synced from GitHub + the
+		// portfolio site) so the bot can talk concretely about his work.
+		try {
+			const [ghRaw, pfRaw] = await Promise.all([
+				env.SYSTEM_PROMPT.get('projects:github'),
+				env.SYSTEM_PROMPT.get('projects:portfolio'),
+			]);
+			const lines: string[] = [];
+			if (pfRaw) {
+				const pf = JSON.parse(pfRaw);
+				if (Array.isArray(pf.projects) && pf.projects.length > 0) {
+					lines.push('Portfolio showcase (glassgallery.my.id/projects):');
+					for (const p of pf.projects.slice(0, 12)) {
+						lines.push(`- ${p.name} (${p.language}${p.stars ? `, ${p.stars}★` : ''}) — ${p.desc}`);
+					}
+				}
+			}
+			if (ghRaw) {
+				const gh = JSON.parse(ghRaw);
+				if (Array.isArray(gh.projects) && gh.projects.length > 0) {
+					lines.push(`GitHub highlights (github.com/1999AZZAR, ${gh.totalRepos || gh.projects.length} public repos):`);
+					for (const p of gh.projects.slice(0, 30)) {
+						lines.push(`- ${p.name} (${p.language}, ${p.stars}★) — ${p.description}`);
+					}
+				}
+			}
+			if (lines.length > 0) {
+				promptContent +=
+					'\n\n<projects>\nThe following are Azzar\'s real projects. When a visitor asks what he has built/works on, reference these concretely with names, tech, and links where relevant. Never invent projects outside this list.\n' +
+					lines.join('\n') +
+					'\n</projects>';
+				if (env.DEBUG) console.log('Injected project knowledge from KV');
+			}
+		} catch (error) {
+			console.error('Error loading project knowledge from KV:', error);
+		}
 	}
 
 	const crawlLinks = (crawlFileContent as string)
