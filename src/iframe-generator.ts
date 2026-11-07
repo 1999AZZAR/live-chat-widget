@@ -600,15 +600,27 @@ export function generateWidgetHTML(url: URL): string {
       typingIndicator.classList.add('visible');
       
       try {
+        // Persistent visitor identity so the bot remembers across sessions
+        const visitorId = (() => {
+          let id = localStorage.getItem('azzarVisitorId');
+          if (!id) {
+            id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(36).slice(2));
+            localStorage.setItem('azzarVisitorId', id);
+          }
+          return id;
+        })();
+
         // Send request to AI using an absolute URL
         const response = await fetch(workerOrigin + '/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             message,
-            history: conversationHistory.slice(0, -1) // Send all except the last message (which is the user's message we just added)
+            history: conversationHistory.slice(0, -1), // Send all except the last message (which is the user's message we just added)
+            visitorId,
+            pageLang: (window.azzarChatCurrentLang || document.documentElement.lang || '').slice(0, 8)
           })
         });
         

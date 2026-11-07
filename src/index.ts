@@ -376,7 +376,80 @@ function detectLanguage(text: string, country: string): string {
 	return country === 'ID' ? 'Indonesian' : 'English';
 }
 
-async function sendToAI(messages: any[], env: Env, country: string = 'US') {
+const STALE_THRESHOLD = 6 * 60 * 60 * 1000; // 6 hours (legacy, unused)
+
+// ---------------------------------------------------------------------------
+// Visitor memory — the "learning" layer.
+// Every visitor gets a persistent memory record in KV (visitor:{id}) that
+// accumulates: name, preferred language, topics asked about, message count.
+// On each turn we read it, inject it into the system prompt as
+// <visitor-context>, then update it with anything new (no AI call needed).
+// ---------------------------------------------------------------------------
+
+interface VisitorMemory {
+	v: number;
+	name?: string;
+	lang?: string;
+	topics: string[];
+	msgCount: number;
+	lastSeen: number;
+	created: number;
+}
+
+const VISITOR_MEMORY_TTL = 90 * 24 * 60 * 60; // 90 days
+
+async function loadVisitorMemory(env: Env, visitorId: string): Promise<VisitorMemory | null> {
+	if (!visitorId || !env.RESPONSE_CACHE_KV) return null;
+	try {
+		const raw = await env.RESPONSE_CACHE_KV.get('visitor:' + visitorId);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw);
+		if (parsed && Array.isArray(parsed.topics)) return parsed as VisitorMemory;
+	} catch (error) {
+		console.error('Visitor memory read failed:', error);
+	}
+	return null;
+}
+
+async function saveVisitorMemory(env: Env, visitorId: string, memory: VisitorMemory): Promise<void> {
+	if (!visitorId || !env.RESPONSE_CACHE_KV) return;
+	try {
+		await env.RESPONSE_CACHE_KV.put('visitor:' + visitorId, JSON.stringify(memory), {
+			expirationTtl: VISITOR_MEMORY_TTL,
+		});
+	} catch (error) {
+		console.error('Visitor memory write failed:', error);
+	}
+}
+
+function extractVisitorName(text: string): string | null {
+	const patterns = [
+		/\bmy name is\s+([A-Za-z][A-Za-z'’\-]{1,30})/i,
+		/\bcall me\s+([A-Za-z][A-Za-z'’\-]{1,30})/i,
+		/\bnama saya\s+([A-Za-z][A-Za-z'’\-]{1,30})/i,
+		/\bpanggil (?:saya|aku)\s+([A-Za-z][A-Za-z'’\-]{1,30})/i,
+		/\bnamaku\s+([A-Za-z][A-Za-z'’\-]{1,30})/i,
+	];
+	for (const pattern of patterns) {
+		const match = text.match(pattern);
+		if (match) {
+			const name = match[1].replace(/\s+/g, ' ').trim();
+			if (name.length >= 2 && !/^(is|was|a|the)$/i.test(name)) return name;
+		}
+	}
+	return null;
+}
+
+function renderVisitorContext(memory: VisitorMemory): string {
+	const bits: string[] = [];
+	if (memory.name) bits.push(`Name: ${memory.name}`);
+	if (memory.lang) bits.push(`Language: ${memory.lang}`);
+	if (memory.topics.length > 0) bits.push(`Topics asked about: ${memory.topics.join(', ')}`);
+	bits.push(`Previous messages: ${memory.msgCount}`);
+	return bits.join(' · ');
+}
+
+async function sendToAI(messages: any[], env: Env, country: string = 'US', visitorId: string = '', pageLang: string = '') {
 	try {
 		// Log request summary only (avoid logging full message content in production)
 		if (env.DEBUG) {
@@ -398,9 +471,41 @@ async function sendToAI(messages: any[], env: Env, country: string = 'US') {
 			messages[langSysIdx].content += `\n\n[language-directive] Reply in ${replyLang}. This overrides any other language instruction.`;
 		}
 
-		// Local FAQ first: instant zero-neuron answers (works even when AI quota is out)
+		// Load + inject persistent visitor memory (name, language, topics)
+		const now = Date.now();
+		let visitorMemory = await loadVisitorMemory(env, visitorId);
+		if (visitorId) {
+			visitorMemory =
+				visitorMemory ||
+				({ v: 1, topics: [], msgCount: 0, lastSeen: now, created: now } as VisitorMemory);
+			const raw = lastMsg ? lastMsg.content : '';
+			const detectedName = extractVisitorName(raw);
+			if (detectedName) visitorMemory.name = detectedName;
+			visitorMemory.lang = pageLang || replyLang;
+			visitorMemory.msgCount += 1;
+			visitorMemory.lastSeen = now;
+			if (langSysIdx !== -1) {
+				messages[langSysIdx].content +=
+					`\n\n[visitor-context] ${renderVisitorContext(visitorMemory)}. Address them by name if known; stay consistent with what they care about.`;
+			}
+			void saveVisitorMemory(env, visitorId, visitorMemory);
+		}
+
+		// Local FAQ: instant zero-neuron answers for simple questions.
+		// In an active conversation (history present) or for longer,
+		// nuanced questions, pass the FAQ answer as GROUNDING FACTS to the
+		// model instead of pasting the canned text, so follow-ups stay coherent.
 		const faqAnswer = matchFaq(lastMsg ? lastMsg.content : '', replyLang);
-		if (faqAnswer) return faqAnswer;
+		const historyTurns = messages.filter((m) => m.role === 'user' || m.role === 'assistant').length;
+		const userWordCount = lastMsg ? lastMsg.content.trim().split(/\s+/).length : 0;
+		if (faqAnswer) {
+			const simpleQuestion = userWordCount <= 6 && historyTurns <= 1;
+			if (simpleQuestion) return faqAnswer;
+			if (langSysIdx !== -1) {
+				messages[langSysIdx].content +=
+					`\n\n[faq-grounding] Canned fact for this topic — use as facts but rewrite naturally in persona, never paste verbatim:\n${faqAnswer}`;
+			}
+		}
 
 		// Generate a cache key for this conversation
 		const cacheKey = 'v3:' + LRUCache.generateKey(messages);
@@ -461,11 +566,11 @@ async function sendToAI(messages: any[], env: Env, country: string = 'US') {
 		});
 
 		// Set maximum output tokens - leaving space based on input tokens
-		// Qwen3-30b-a3b-fp8 context is ~32k tokens; we stay well below with 6k budget.
-		// Let's target staying within a safer limit, e.g., 6000 tokens total.
-		const MAX_CONTEXT_TOKENS = 6000;
-		// Increase the safety buffer from 150 to 250 tokens.
-		const MAX_OUTPUT_TOKENS = Math.max(250, MAX_CONTEXT_TOKENS - inputTokens - 250);
+		// System prompt alone is ~7k tokens; Qwen3-30B supports ~32k, so
+		// budget 16k total with a real floor so code answers aren't starved.
+		const MAX_CONTEXT_TOKENS = 16000;
+		// Keep at least 800 output tokens, cap at 2500.
+		const MAX_OUTPUT_TOKENS = Math.min(2500, Math.max(800, MAX_CONTEXT_TOKENS - inputTokens - 500));
 
 		console.log(
 			`Approximate input tokens: ${inputTokens}, setting max output tokens: ${MAX_OUTPUT_TOKENS}`
@@ -761,6 +866,8 @@ export default {
 					const body: any = await request.json();
 					const { message } = body;
 					let { history = [] } = body;
+					const visitorId = typeof body.visitorId === 'string' ? body.visitorId.slice(0, 64) : '';
+					const pageLang = typeof body.pageLang === 'string' ? body.pageLang.slice(0, 8) : '';
 					if (!message) {
 						return new Response(JSON.stringify({ error: 'Message is required' }), {
 							status: 400,
@@ -773,7 +880,7 @@ export default {
 					const messages = [{ role: 'system', content: prompt }];
 					if (history.length > 0) messages.push(...history);
 					messages.push({ role: 'user', content: message });
-					const aiResponse = await sendToAI(messages, env, (request.cf as any)?.country || 'US');
+					const aiResponse = await sendToAI(messages, env, (request.cf as any)?.country || 'US', visitorId, pageLang);
 					return new Response(JSON.stringify({ response: aiResponse }), {
 						headers: { 'Content-Type': 'application/json', ...corsHeaders },
 					});
