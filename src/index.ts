@@ -59,7 +59,7 @@ async function getSystemPrompt(env: Env) {
 			if (ghRaw) {
 				const gh = JSON.parse(ghRaw);
 				if (Array.isArray(gh.projects) && gh.projects.length > 0) {
-					lines.push(`GitHub highlights (github.com/1999AZZAR, ${gh.totalRepos || gh.projects.length} public repos):`);
+					lines.push('GitHub highlights (github.com/1999AZZAR):');
 					for (const p of gh.projects.slice(0, 30)) {
 						lines.push(`- ${p.name} (${p.language}, ${p.stars}★) — ${p.description}`);
 					}
@@ -67,7 +67,7 @@ async function getSystemPrompt(env: Env) {
 				if (Array.isArray(gh.orgs)) {
 					for (const org of gh.orgs) {
 						if (!org || !Array.isArray(org.projects) || org.projects.length === 0) continue;
-						lines.push(`GitHub org ${org.login} (${org.totalRepos} repos):`);
+						lines.push(`GitHub org ${org.login}:`);
 						for (const p of org.projects.slice(0, 15)) {
 							lines.push(`- ${p.name} (${p.language}, ${p.stars}★) — ${p.description}`);
 						}
