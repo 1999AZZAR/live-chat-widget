@@ -553,9 +553,28 @@ export function generateWidgetHTML(url: URL): string {
         }
       } else {
         conversationHistory = [];
+        showWelcomeMessage();
       }
       saveConversationHistory();
     };
+
+    // Fetch the predefined welcome message (KV-stored, instant) and show it
+    // as the first AI bubble when there's no prior history.
+    async function showWelcomeMessage() {
+      try {
+        const lang = (window.azzarChatCurrentLang || 'en').slice(0, 8);
+        const res = await fetch(workerOrigin + '/api/welcome-message?lang=' + encodeURIComponent(lang));
+        if (!res.ok) return;
+        const data = await res.json();
+        const msg = data.message;
+        if (msg) {
+          addMessageToUI('ai', msg);
+          addMessageToHistory('assistant', msg);
+        }
+      } catch (e) {
+        console.error('Welcome message failed:', e);
+      }
+    }
     
     // Save conversation history to localStorage
     const saveConversationHistory = () => {

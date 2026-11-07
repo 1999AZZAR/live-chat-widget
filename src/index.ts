@@ -952,6 +952,27 @@ export default {
 							},
 						});
 					}
+					// Predefined welcome from KV (instant, no AI latency).
+					// Key welcome:message = JSON { "en": "...", "id": "..." }.
+					const langParam = url.searchParams.get('lang');
+					const pick = (obj: any) =>
+						(obj?.[langParam || ''] || obj?.en || '');
+					const raw = env.SYSTEM_PROMPT
+						? await env.SYSTEM_PROMPT.get('welcome:message')
+						: null;
+					if (raw) {
+						try {
+							const parsed = JSON.parse(raw);
+							const msg = pick(parsed) || raw;
+							if (msg) {
+								return new Response(JSON.stringify({ message: msg }), {
+									headers: { 'Content-Type': 'application/json', ...corsHeaders },
+								});
+							}
+						} catch {
+							// Fall through to AI-generated fallback
+						}
+					}
 					const prompt = await getSystemPrompt(env);
 					const messages = [
 						{
