@@ -202,9 +202,10 @@ function shouldUseWikipedia(text: string): boolean {
 function cleanupFormatting(text: string): string {
 	if (!text) return '';
 	// Decode HTML entities first, looping until stable: the model sometimes
-	// double-encodes (&amp;#x27;), so a single pass leaves a literal &#x27;
-	// (decoding hex before &amp; misses it, since the & is shielded by amp;).
-	for (let i = 0; i < 3; i++) {
+	// double/triple-encodes (&amp;#x27;, &amp;amp;x27;), so a single pass leaves
+	// a literal &#x27; (decoding hex before &amp; misses it, since the & is
+	// shielded by amp;). 8 passes mops up every observed nesting level.
+	for (let i = 0; i < 8; i++) {
 		const prev = text;
 		text = text
 			.replace(/&amp;/g, '&')

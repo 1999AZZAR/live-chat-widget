@@ -9,6 +9,14 @@ type FaqEntry = {
 
 const FAQ: FaqEntry[] = [
   {
+    keys: ['buatkan', 'buatin', 'code', 'koding', 'js', 'javascript', 'python', 'html', 'css', 'program', 'script', 'bug', 'error', 'fungsi', 'function', 'login page', 'halaman login', 'ngoding', 'debug'],
+    a: {
+      id: 'Untuk coding langsung, langsung ke Mas Azzar aja ya — Mema di sini fokus bantu info layanan, tarif, dan kontak. Email azzar@glassgallery.my.id ya.',
+      en: 'For actual coding, go straight to Mas Azzar — Mema handles services, rates, and contact info here. Email azzar@glassgallery.my.id.',
+      jv: 'Nek ngoding langsung, langsung neng Mas Azzar wae — Mema fokus info layanan, tarif, lan kontak.',
+    },
+  },
+  {
     keys: ['kenapa harus', 'why should', 'alasan hire', 'kelebihan', 'bedanya apa', 'kenapa pilih'],
     a: {
       id: 'Karena dia ngerjain end-to-end (firmware sampai dashboard), dokumentasi rapi, dan 13 situs produksi live sebagai bukti \u2014 bukan janji.',
