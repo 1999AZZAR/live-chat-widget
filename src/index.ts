@@ -153,14 +153,22 @@ function shouldUseWikipedia(text: string): boolean {
 // Function to clean up common AI response artifacts
 function cleanupFormatting(text: string): string {
 	if (!text) return '';
-	text = text
-		.replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
-		.replace(/&#x([0-9A-Fa-f]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-		.replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
-		.replace(/&amp;/g, '&')
-		.replace(/&lt;/g, '<')
-		.replace(/&gt;/g, '>')
-		.replace(/&quot;/g, '"');
+	// Decode HTML entities first, looping until stable: the model sometimes
+	// double-encodes (&amp;#x27;), so a single pass leaves a literal &#x27;
+	// (decoding hex before &amp; misses it, since the & is shielded by amp;).
+	for (let i = 0; i < 3; i++) {
+		const prev = text;
+		text = text
+			.replace(/&amp;/g, '&')
+			.replace(/&lt;/g, '<')
+			.replace(/&gt;/g, '>')
+			.replace(/&quot;/g, '"')
+			.replace(/&apos;/g, "'")
+			.replace(/&#x([0-9A-Fa-f]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+			.replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)));
+		if (text === prev) break;
+	}
+	text = text.replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
 
 	// Protect URLs and emails from being mangled by regex
 	const urls: string[] = [];
@@ -395,7 +403,7 @@ async function sendToAI(messages: any[], env: Env, country: string = 'US') {
 		if (faqAnswer) return faqAnswer;
 
 		// Generate a cache key for this conversation
-		const cacheKey = 'v2:' + LRUCache.generateKey(messages);
+		const cacheKey = 'v3:' + LRUCache.generateKey(messages);
 
 		// Check memory cache first (fastest)
 		if (memoryCache.has(cacheKey)) {

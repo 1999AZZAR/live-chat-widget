@@ -387,8 +387,19 @@ export function generateWidgetHTML(url: URL): string {
     function markdownToHtml(text) {
       if (!text) return '';
 
-      // First, escape HTML characters to prevent XSS before processing markdown
+      // Decode HTML entities first (e.g. &#x27; &#39; &apos; from the model) so
+      // the escape pass below doesn't double-encode them into visible &#x27;.
       text = String(text || '')
+        .replace(/&#x([0-9A-Fa-f]+);/g, (m, h) => String.fromCodePoint(parseInt(h, 16)))
+        .replace(/&#(\d+);/g, (m, d) => String.fromCodePoint(parseInt(d, 10)))
+        .replace(/&apos;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+
+      // First, escape HTML characters to prevent XSS before processing markdown
+      text = text
         .replace(new RegExp('&', 'g'), '&amp;')
         .replace(new RegExp('<', 'g'), '&lt;')
         .replace(new RegExp('>', 'g'), '&gt;')
