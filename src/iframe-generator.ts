@@ -10,27 +10,29 @@ export function generateWidgetHTML(url: URL): string {
 	const inputHint = uiLang === 'id' ? 'Tulis pesan...' : 'Type your message...';
 	const docTitle = uiLang === 'id' ? 'Chat dengan Mema' : 'Chat with Mema';
 
-	// Step 2: Define default color schemes for dark and light modes
+	// Step 2: Define default color schemes for dark and light modes.
+	// Tuned to the Swiss-archival paper + crimson palette (glassgallery.my.id)
+	// so the widget reads as intentional on warm paper instead of a cold slab.
 	const colorDefaults: Record<string, any> = {
 		light: {
-			accentColor: '#6200EE',
-			accentColorDark: '#3700b3',
-			onAccentColor: 'white',
-			chatContainerBg: 'rgba(255, 255, 255, 0.8)',
-			chatWindowBg: '#f5f5f5',
-			aiMessageBg: '#e0e0e0',
-			aiMessageColor: '#333333',
-			textColor: '#333333',
+			accentColor: '#B91C1C',
+			accentColorDark: '#991B1B',
+			onAccentColor: '#FBF7EE',
+			chatContainerBg: 'rgba(232, 229, 220, 0.92)',
+			chatWindowBg: '#F5F1E8',
+			aiMessageBg: '#EAE5D8',
+			aiMessageColor: '#2B2620',
+			textColor: '#2B2620',
 		},
 		dark: {
-			accentColor: '#BB86FC',
-			accentColorDark: '#D0BCFF',
-			onAccentColor: '#381E72',
-			chatContainerBg: 'rgba(18, 18, 18, 0.8)',
-			chatWindowBg: '#121212',
-			aiMessageBg: '#333333',
-			aiMessageColor: 'white',
-			textColor: 'white',
+			accentColor: '#E32636',
+			accentColorDark: '#C81E2F',
+			onAccentColor: '#FBF7EE',
+			chatContainerBg: 'rgba(26, 23, 20, 0.94)',
+			chatWindowBg: '#201D19',
+			aiMessageBg: '#2E2A24',
+			aiMessageColor: '#F5F1E8',
+			textColor: '#F5F1E8',
 		},
 	};
 
@@ -213,9 +215,9 @@ export function generateWidgetHTML(url: URL): string {
     }
     
     .clear-button {
-      background-color: transparent;
-      color: ${colors.accentColor};
-      border: 1px solid ${colors.aiMessageBg};
+      background-color: ${colors.aiMessageBg};
+      color: ${userMessageColor};
+      border: 1px solid transparent;
       border-radius: 50%;
       width: 36px;
       height: 36px;
@@ -226,10 +228,12 @@ export function generateWidgetHTML(url: URL): string {
       justify-content: center;
       transition: all 0.2s;
       overflow: visible;
+      font-weight: bold;
     }
-    
+
     .clear-button:hover {
-      background-color: ${colors.aiMessageBg};
+      background-color: ${colors.accentColor};
+      color: ${userMessageColor};
     }
     
     .clear-icon {

@@ -356,9 +356,9 @@ export function generateWidgetJS(origin: string) {
         if (iframe.contentWindow) iframe.contentWindow.postMessage({ azzarSetLang: l }, workerOrigin);
       }).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
       
-      const accentColor = hostTheme['primary-color'] || (finalTheme === 'dark' ? '#BB86FC' : '#6200EE');
-      const buttonBg = finalTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)';
-      const windowBg = hostTheme['octonary-color'] || (finalTheme === 'dark' ? 'rgba(28, 28, 28, 0.75)' : 'rgba(255, 255, 255, 0.75)');
+      const accentColor = hostTheme['primary-color'] || (finalTheme === 'dark' ? '#E32636' : '#B91C1C');
+      const buttonBg = finalTheme === 'dark' ? 'rgba(26,23,20,0.9)' : 'rgba(245,241,232,0.9)';
+      const windowBg = hostTheme['octonary-color'] || (finalTheme === 'dark' ? 'rgba(26, 23, 20, 0.92)' : 'rgba(245, 241, 232, 0.92)');
       
       // Inject enhanced Material You button and window styles
       const style = document.createElement('style');
@@ -430,14 +430,14 @@ export function generateWidgetJS(origin: string) {
           position: absolute;
           bottom: 80px;
           right: 0;
-          width: 360px;
+          width: min(360px, calc(100vw - 24px));
           height: 500px;
-          border-radius: 18px;
+          border-radius: 16px;
           background: \${windowBg};
           backdrop-filter: saturate(180%) blur(20px);
           -webkit-backdrop-filter: saturate(180%) blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 12px 32px rgba(0,0,0,0.25);
+          border: 1px solid rgba(43, 38, 32, 0.18);
+          box-shadow: 0 12px 32px rgba(26, 23, 20, 0.25);
           overflow: hidden;
           display: none;
           opacity: 0;
@@ -448,8 +448,16 @@ export function generateWidgetJS(origin: string) {
         }
         @media (min-width: 768px) {
           .azzar-chat-window {
-            height: 85vh;
-            border-radius: 15px;
+            height: min(560px, 85vh);
+            border-radius: 16px;
+          }
+        }
+        @media (max-width: 767px) {
+          .azzar-chat-window {
+            right: 0;
+            width: calc(100vw - 24px);
+            height: min(600px, 72vh);
+            bottom: 76px;
           }
         }
         .azzar-chat-window.open {
