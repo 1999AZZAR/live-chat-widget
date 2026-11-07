@@ -6,6 +6,7 @@ import { LRUCache, memoryCache, getMemoryCacheStats } from './lru-handler';
 import systemInstruction from './systemInstruction.txt';
 // @ts-ignore
 import crawlFileContent from './crawl.txt';
+import { matchFaq } from './faq';
 
 interface Env {
 	AI: any;
@@ -79,8 +80,13 @@ async function queryWikipedia(query: string) {
 	}
 
 	try {
+		// Use Indonesian Wikipedia for Indonesian queries, English otherwise
+		const idMarkers = ['siapa', 'apa', 'jelaskan', 'bagaimana', 'gimana', 'kenapa', 'adalah', 'dimana', 'berapa'];
+		const wikiHost = idMarkers.some((m) => query.toLowerCase().includes(m))
+			? 'id.wikipedia.org'
+			: 'en.wikipedia.org';
 		// Use the Wikipedia API (Search)
-		const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
+		const searchUrl = `https://${wikiHost}/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
 		const searchResponse = await fetch(searchUrl);
 		const searchData: any = await searchResponse.json();
 
@@ -89,7 +95,7 @@ async function queryWikipedia(query: string) {
 			const pageTitle = bestResult.title;
 
 			// Get the page summary
-			const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle.replace(/ /g, '_'))}`;
+			const summaryUrl = `https://${wikiHost}/api/rest_v1/page/summary/${encodeURIComponent(pageTitle.replace(/ /g, '_'))}`;
 			const summaryResponse = await fetch(summaryUrl);
 			const summaryData: any = await summaryResponse.json();
 
@@ -97,7 +103,7 @@ async function queryWikipedia(query: string) {
 				success: true,
 				title: summaryData.title || pageTitle,
 				content: summaryData.extract || bestResult.snippet.replace(/<[^>]*>/g, ''),
-				url: summaryData.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, '_'))}`,
+				url: summaryData.content_urls?.desktop?.page || `https://${wikiHost}/wiki/${encodeURIComponent(pageTitle.replace(/ /g, '_'))}`,
 			};
 
 			// Store in cache (1 day)
@@ -128,6 +134,17 @@ function shouldUseWikipedia(text: string): boolean {
 		'apa itu',
 		'jelaskan',
 		'dimana',
+		'siapakah',
+		'apakah',
+		'bagaimana',
+		'gimana',
+		'kenapa',
+		'kapan',
+		'berapa',
+		'how to',
+		'how do',
+		'why is',
+		"who's",
 	];
 	const lowerText = text.toLowerCase();
 	return keywords.some((kw) => lowerText.includes(kw));
@@ -136,9 +153,21 @@ function shouldUseWikipedia(text: string): boolean {
 // Function to clean up common AI response artifacts
 function cleanupFormatting(text: string): string {
 	if (!text) return '';
+	text = text
+		.replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+		.replace(/&#x([0-9A-Fa-f]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+		.replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+		.replace(/&amp;/g, '&')
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"');
 
-	// Protect URLs from being mangled by regex
+	// Protect URLs and emails from being mangled by regex
 	const urls: string[] = [];
+	text = text.replace(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g, (match) => {
+		urls.push(match);
+		return `__URL_PLACEHOLDER_${urls.length - 1}__`;
+	});
 	const protectedText = text.replace(/(https?:\/\/[^\s<]+)/g, (match) => {
 		urls.push(match);
 		return `__URL_PLACEHOLDER_${urls.length - 1}__`;
@@ -203,32 +232,6 @@ function jaccardSimilarity(str1: string, str2: string): number {
 // Enhanced deduplication function - this is the main improvement to fix duplicate responses
 function deduplicateResponse(text: string, env: Env): string {
 	if (!text) return text;
-
-	// Step 1: Check for patterns related to creator/bot introduction that commonly repeat
-	const introPatterns = [
-		/^(My creator is azzar|azzar Budiyanto is a freelance)/i,
-		/^(FREA is an AI assistant|I am FREA, an AI assistant)/i,
-		/^(As an AI assistant|As FREA, an AI assistant)/i,
-	];
-
-	for (const pattern of introPatterns) {
-		const parts = text.split(pattern);
-		// If we have multiple matches of the same intro pattern
-		if (parts.length >= 3) {
-			// First part is anything before first match, often empty
-			// Second part is the matched content in the first match and content after it
-			const firstSection = parts[0] + (pattern.source.replace(/^\^|\(|\).*$/g, '') + parts[1]);
-
-			// Only keep the first section if it's substantial
-			if (firstSection.trim().length > 50) {
-				if (env && env.DEBUG)
-					console.log(
-						'Deduplication: Found repeated introduction pattern, keeping first instance.'
-					);
-				return firstSection.trim();
-			}
-		}
-	}
 
 	// Step 2: More general sentence-level deduplication using Jaccard Similarity
 	// This helps with cases where sentences are very similar but not identical
@@ -343,7 +346,29 @@ async function initializeKVCache(env: Env) {
 }
 
 // Function to send messages to the AI
-async function sendToAI(messages: any[], env: Env) {
+// Detect reply language: Indonesian, English, or Javanese. Falls back to
+// Indonesian for ID visitors, English otherwise (Cloudflare country code).
+function detectLanguage(text: string, country: string): string {
+	const lower = ` ${text.toLowerCase()} `;
+	const has = (words: string[]) => words.some((w) => lower.includes(` ${w} `));
+	if (has(['sampean', 'sampeyan', 'kulo', 'piye', 'pripun', 'ora', 'wae', 'opo', 'ngopo', 'sugeng', 'monggo', 'matur', 'nuwun', 'kowe', 'wis', 'durung', 'kari', 'dewe'])) return 'casual Javanese (ngoko)';
+	const jvScore = has(['yo', 'iso', 'sampek']) ? 1 : 0;
+	const idScore =
+		(has(['yang']) ? 1 : 0) + (has(['dan']) ? 1 : 0) + (has(['adalah']) ? 1 : 0) +
+		(has(['saya', 'kamu', 'anda']) ? 1 : 0) + (has(['tidak', 'dengan', 'untuk']) ? 1 : 0) +
+		(has(['bagaimana', 'kenapa', 'berapa', 'apakah', 'tolong', 'banget', 'dong', 'sih']) ? 1 : 0) +
+		(has(['kalo', 'kalau', 'itu', 'ini', 'nggak', 'ngga', 'aja', 'kok', 'saja', 'bisa']) ? 1 : 0) +
+		(has(['halo', 'hallo', 'hai', 'pagi', 'siang', 'sore', 'malam', 'makasih', 'maaf']) ? 1 : 0);
+	const enScore =
+		(has(['hello', 'hey']) ? 1 : 0) + (has(['hi', 'thanks', 'thank you', 'please', 'sorry']) ? 1 : 0) +
+		(has(['who', 'are', 'the', 'you', 'your', 'what', 'how', 'when', 'where', 'why', 'can', 'does', 'do', 'is', 'was', 'will', 'with', 'for', 'this', 'that', 'from']) ? 1 : 0);
+	if (idScore > 0 && idScore >= enScore && idScore >= jvScore) return 'Indonesian';
+	if (enScore > 0 && enScore > idScore) return 'English';
+	if (jvScore > 0) return 'casual Javanese (ngoko)';
+	return country === 'ID' ? 'Indonesian' : 'English';
+}
+
+async function sendToAI(messages: any[], env: Env, country: string = 'US') {
 	try {
 		// Log request summary only (avoid logging full message content in production)
 		if (env.DEBUG) {
@@ -357,8 +382,20 @@ async function sendToAI(messages: any[], env: Env) {
 			return 'Sorry, the AI service is not properly configured.';
 		}
 
+		// Pin reply language (ID/EN/JV) before caching so each language caches separately
+		const lastMsg = [...messages].reverse().find((m) => m.role === 'user');
+		const replyLang = detectLanguage(lastMsg ? lastMsg.content : '', country);
+		const langSysIdx = messages.findIndex((m) => m.role === 'system');
+		if (langSysIdx !== -1) {
+			messages[langSysIdx].content += `\n\n[language-directive] Reply in ${replyLang}. This overrides any other language instruction.`;
+		}
+
+		// Local FAQ first: instant zero-neuron answers (works even when AI quota is out)
+		const faqAnswer = matchFaq(lastMsg ? lastMsg.content : '', replyLang);
+		if (faqAnswer) return faqAnswer;
+
 		// Generate a cache key for this conversation
-		const cacheKey = LRUCache.generateKey(messages);
+		const cacheKey = 'v2:' + LRUCache.generateKey(messages);
 
 		// Check memory cache first (fastest)
 		if (memoryCache.has(cacheKey)) {
@@ -416,7 +453,7 @@ async function sendToAI(messages: any[], env: Env) {
 		});
 
 		// Set maximum output tokens - leaving space based on input tokens
-		// Model context limit is about 8k-16k tokens depending on the specific model
+		// Qwen3-30b-a3b-fp8 context is ~32k tokens; we stay well below with 6k budget.
 		// Let's target staying within a safer limit, e.g., 6000 tokens total.
 		const MAX_CONTEXT_TOKENS = 6000;
 		// Increase the safety buffer from 150 to 250 tokens.
@@ -433,16 +470,30 @@ async function sendToAI(messages: any[], env: Env) {
 				'\n\nIMPORTANT: Please provide a concise, non-repetitive response. Do not duplicate information within your answer.';
 		}
 
-		// Log cache miss and call the AI API
-		console.log('Cache miss - calling AI service');
-		const aiResponse: any = await env.AI.run('@cf/meta/llama-3.1-70b-instruct', {
-			messages: messages,
-			max_tokens: MAX_OUTPUT_TOKENS,
-			temperature: 0.7, // Add some temperature for more natural responses
-			top_p: 0.95, // Adjust top_p for more focused responses
-			// Removed aggressive stop_sequences to avoid truncating valid content like code blocks and lists
-			// Rely on max_tokens and post-processing cleanup instead
-		});
+		// Qwen3 is the primary (better instruction-following, fast MoE);
+		// chat_template_kwargs disables its thinking mode — answer lands in
+		// choices[0].message.content; Llama is fallback.
+		let aiResponse: any;
+		const AI_MODELS = [
+			{ id: '@cf/qwen/qwen3-30b-a3b-fp8', extra: { chat_template_kwargs: { enable_thinking: false } } },
+			{ id: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', extra: {} },
+		];
+		for (let i = 0; i < AI_MODELS.length; i++) {
+			try {
+				aiResponse = await env.AI.run(AI_MODELS[i].id, {
+					messages: messages,
+					max_tokens: MAX_OUTPUT_TOKENS,
+					temperature: 0.7, // Add some temperature for more natural responses
+					top_p: 0.95, // Adjust top_p for more focused responses
+					repetition_penalty: 1.1, // Cut repetition at the source instead of regexing it after
+					...AI_MODELS[i].extra,
+				});
+				if (aiResponse) break;
+			} catch (err) {
+				console.error(`AI model ${AI_MODELS[i].id} failed, falling back:`, err);
+				if (i === AI_MODELS.length - 1) throw err;
+			}
+		}
 
 		console.log('Raw AI response received');
 
@@ -455,8 +506,14 @@ async function sendToAI(messages: any[], env: Env) {
 			responseText = aiResponse;
 			console.log('Response is a string');
 		} else if (typeof aiResponse === 'object' && aiResponse !== null) {
-			// Object response - commonly has a 'response' or 'text' property
-			responseText = aiResponse.response || aiResponse.text || '';
+			// Workers AI returns either { response } (Llama) or OpenAI-style
+			// { choices: [{ message: { content | reasoning_content } }] } (Qwen3).
+			if (Array.isArray(aiResponse.choices)) {
+				const msg = aiResponse.choices[0]?.message || {};
+				responseText = msg.content || msg.reasoning_content || aiResponse.response || aiResponse.text || '';
+			} else {
+				responseText = aiResponse.response || aiResponse.text || '';
+			}
 			console.log('Response is an object, extracted text');
 
 			// Check if it's an error object
@@ -523,6 +580,10 @@ async function sendToAI(messages: any[], env: Env) {
 		if (error.message) {
 			console.error('Error message:', error.message);
 		}
+		const quotaHit = /4006|daily free allocation|quota|rate limit/i.test(error.message || '');
+		if (quotaHit) {
+			return 'Jatah AI harianku habis — ngobrol lagi besok ya! / Daily AI quota exhausted — try again tomorrow!';
+		}
 		return 'Sorry, I had trouble processing your request. Error: ' + error.message;
 	}
 }
@@ -549,6 +610,8 @@ export default {
 			method: request.method,
 			url: request.url,
 			referer: request.headers.get('Referer'),
+			hasCFIP: !!request.headers.get('CF-Connecting-IP'),
+			hasLimiter: !!env.RATE_LIMITER_KV,
 		});
 
 		// Initialize KV cache if available
@@ -634,11 +697,18 @@ export default {
 				const secondsUntilNextMinute = (nextMinute * 60000 - now) / 1000;
 
 				let ipRequestCount = 0;
+				let dayKey = '';
+				let ipDayCount = 0;
 				if (clientIP !== 'unknown_ip') {
 					const ipKey = `rate_limit:ip:${clientIP}:${currentMinute}`;
 					const ipCount = await env.RATE_LIMITER_KV.get(ipKey);
 					ipRequestCount = ipCount ? parseInt(ipCount) : 0;
 					if (ipRequestCount >= 30) return { exceeded: true, retryAfter: Math.ceil(secondsUntilNextMinute) };
+				const currentDay = Math.floor(now / 86400000);
+				dayKey = `rate_limit:ipday:${clientIP}:${currentDay}`;
+				const dayCount = await env.RATE_LIMITER_KV.get(dayKey);
+				ipDayCount = dayCount ? parseInt(dayCount) : 0;
+				if (ipDayCount >= 150) return { exceeded: true, retryAfter: Math.ceil(secondsUntilNextMinute) };
 				}
 
 				let customerRequestCount = 0;
@@ -652,11 +722,13 @@ export default {
 				if (clientIP !== 'unknown_ip') {
 					const ipKey = `rate_limit:ip:${clientIP}:${currentMinute}`;
 					await env.RATE_LIMITER_KV.put(ipKey, (ipRequestCount + 1).toString(), { expirationTtl: 60 });
+				await env.RATE_LIMITER_KV.put(dayKey, (ipDayCount + 1).toString(), { expirationTtl: 86400 });
 				}
 				if (customerKey !== 'anonymous') {
 					const customerKeyLimit = `rate_limit:key:${customerKey}:${currentMinute}`;
 					await env.RATE_LIMITER_KV.put(customerKeyLimit, (customerRequestCount + 1).toString(), { expirationTtl: 60 });
 				}
+				log('Rate check', { minute: ipRequestCount, day: ipDayCount, ipKnown: clientIP !== 'unknown_ip' });
 				return { exceeded: false };
 			} catch (error) {
 				console.error('Rate limiting error:', error);
@@ -693,7 +765,7 @@ export default {
 					const messages = [{ role: 'system', content: prompt }];
 					if (history.length > 0) messages.push(...history);
 					messages.push({ role: 'user', content: message });
-					const aiResponse = await sendToAI(messages, env);
+					const aiResponse = await sendToAI(messages, env, (request.cf as any)?.country || 'US');
 					return new Response(JSON.stringify({ response: aiResponse }), {
 						headers: { 'Content-Type': 'application/json', ...corsHeaders },
 					});
@@ -708,16 +780,27 @@ export default {
 
 			if (url.pathname === '/api/welcome-message' && request.method === 'GET') {
 				try {
+					const welcomeLimit = await rateLimitPromise;
+					if (welcomeLimit.exceeded) {
+						return new Response(JSON.stringify({ error: 'Too many requests' }), {
+							status: 429,
+							headers: {
+								'Content-Type': 'application/json',
+								'Retry-After': (welcomeLimit.retryAfter ?? 60).toString(),
+								...corsHeaders,
+							},
+						});
+					}
 					const prompt = await getSystemPrompt(env);
 					const messages = [
 						{
 							role: 'system',
 							content:
 								prompt +
-								'\n\nPlease provide a brief, friendly welcome message introducing yourself as FREA, the AI assistant. Keep it concise and engaging.',
+								'\n\nPlease provide a brief, friendly welcome message introducing yourself as Mema, Azzar Budiyanto\u2019s personal AI hosting his portfolio live-chat. Keep it concise and engaging.',
 						},
 					];
-					const welcomeMessage = await sendToAI(messages, env);
+					const welcomeMessage = await sendToAI(messages, env, (request.cf as any)?.country || 'US');
 					return new Response(JSON.stringify({ message: welcomeMessage }), {
 						headers: { 'Content-Type': 'application/json', ...corsHeaders },
 					});

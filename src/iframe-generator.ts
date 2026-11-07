@@ -5,6 +5,10 @@ export function generateWidgetHTML(url: URL): string {
 
 	// Step 1: Determine the base theme (dark/light) as a fallback
 	const baseTheme = params.get('theme') === 'dark' ? 'dark' : 'light';
+	const uiLang = params.get('lang') === 'id' ? 'id' : 'en';
+	const headerText = uiLang === 'id' ? 'Tanya Mema' : 'Ask Mema';
+	const inputHint = uiLang === 'id' ? 'Tulis pesan...' : 'Type your message...';
+	const docTitle = uiLang === 'id' ? 'Chat dengan Mema' : 'Chat with Mema';
 
 	// Step 2: Define default color schemes for dark and light modes
 	const colorDefaults: Record<string, any> = {
@@ -62,7 +66,7 @@ export function generateWidgetHTML(url: URL): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat with FREA</title>
+  <title>${docTitle}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     :root { --footer-h: 64px; }
@@ -304,7 +308,7 @@ export function generateWidgetHTML(url: URL): string {
 </head>
 <body>
   <div class="chat-container">
-    <div class="chat-header">Support</div>
+    <div class="chat-header">${headerText}</div>
     <div class="messages" id="messages">
     </div>
     <div class="typing-indicator" id="typing-indicator">
@@ -313,7 +317,7 @@ export function generateWidgetHTML(url: URL): string {
       <span class="dot"></span>
     </div>
     <div class="input-container">
-      <input type="text" class="input-field" id="input-field" placeholder="Type your message...">
+      <input type="text" class="input-field" id="input-field" placeholder="${inputHint}">
       <button class="send-button" id="send-button">
         <svg class="send-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
           <path d="M0 0h24v24H0V0z" fill="none"/>
@@ -390,7 +394,6 @@ export function generateWidgetHTML(url: URL): string {
         .replace(new RegExp('>', 'g'), '&gt;')
         .replace(new RegExp('"', 'g'), '&quot;')
         .replace(new RegExp("'", 'g'), '&#x27;')
-        .replace(new RegExp('\\\\/', 'g'), '&#x2F;');
 
       // Create regex patterns using RegExp constructor to avoid template literal issues
       const newlinePattern = new RegExp('\\\\n{3,}', 'g');
@@ -509,6 +512,9 @@ export function generateWidgetHTML(url: URL): string {
       text = text.replace(brPattern, '<br><br>');
 
       // Apply HTML sanitization to prevent XSS attacks
+      // Restore slashes: markdownToHtml escapes every / as &#x2F; for XSS safety,
+      // but a bare / is harmless while < and > stay escaped — without this, all URLs render broken.
+      text = text.replace(/&#x2F;/g, '/');
       return sanitizeHtml(text);
     }
     
@@ -640,6 +646,16 @@ export function generateWidgetHTML(url: URL): string {
     
     // Load conversation history on page load
     loadConversationHistory();
+
+    // Live language switching (portfolio posts {azzarSetLang: 'id'|'en'})
+    window.azzarChatSetLang = function(lang) {
+      var l = (lang || '').toLowerCase().indexOf('id') === 0 ? 'id' : 'en';
+      var header = document.querySelector('.chat-header');
+      if (header) header.textContent = l === 'id' ? 'Tanya Mema' : 'Ask Mema';
+      var input = document.getElementById('input-field');
+      if (input) input.placeholder = l === 'id' ? 'Tulis pesan...' : 'Type your message...';
+      document.title = l === 'id' ? 'Chat dengan Mema' : 'Chat with Mema';
+    };
 
     // Add cross-frame language switching support
     window.addEventListener('message', function(event) {

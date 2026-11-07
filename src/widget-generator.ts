@@ -347,7 +347,14 @@ export function generateWidgetJS(origin: string) {
       }
       // Ensure latest iframe loads by adding a cache-busting parameter
       queryParams.set('v', String(Date.now()));
+      const pageLang = (document.documentElement.lang || 'en').toLowerCase().indexOf('id') === 0 ? 'id' : 'en';
+      queryParams.set('lang', pageLang);
       const iframeSrc = \`\${workerOrigin}/widget-iframe?\${queryParams.toString()}\`;
+      // Follow portfolio language switches live (no reload, chat state kept)
+      new MutationObserver(function() {
+        var l = (document.documentElement.lang || 'en').toLowerCase().indexOf('id') === 0 ? 'id' : 'en';
+        if (iframe.contentWindow) iframe.contentWindow.postMessage({ azzarSetLang: l }, workerOrigin);
+      }).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
       
       const accentColor = hostTheme['primary-color'] || (finalTheme === 'dark' ? '#BB86FC' : '#6200EE');
       const buttonBg = finalTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)';
@@ -472,7 +479,7 @@ export function generateWidgetJS(origin: string) {
       const iframe = document.createElement('iframe');
       iframe.className = 'azzar-chat-iframe';
       iframe.src = iframeSrc;
-      iframe.title = 'Chat with FREA';
+      iframe.title = 'Chat with Mema';
       
       chatWindow.appendChild(iframe);
       widget.appendChild(chatWindow);
