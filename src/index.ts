@@ -3,6 +3,7 @@ import { generateWidgetJS } from './widget-generator';
 import { generateWidgetHTML } from './iframe-generator';
 import { LRUCache, memoryCache, getMemoryCacheStats } from './lru-handler';
 import { webSearch, shouldSearch, renderSearchContext } from './search';
+import { detectInjection } from './injectionGuard';
 // @ts-ignore
 import systemInstruction from './systemInstruction.txt';
 // @ts-ignore
@@ -538,6 +539,13 @@ async function sendToAI(messages: any[], env: Env, country: string = 'US', visit
 					`\n\n[visitor-context] ${renderVisitorContext(visitorMemory)}. Address them by name if known; stay consistent with what they care about.`;
 			}
 			void saveVisitorMemory(env, visitorId, visitorMemory);
+		}
+
+		// Injection firewall FIRST: classic override/reveal attempts get a
+		// canned defusion and never reach the model or the FAQ fast-path.
+		if (lastMsg && detectInjection(lastMsg.content)) {
+			console.warn('Prompt-injection attempt blocked in widget chat');
+			return 'Haha, usaha yang bagus... tapi nggak mempan. Aku tetap Mema, instruksi tetap instruksi. Ada yang bisa dibantu soal kerjaan Mas Azzar?';
 		}
 
 		// Local FAQ: instant zero-neuron answers for simple questions.
