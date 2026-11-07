@@ -2,6 +2,7 @@
 import { generateWidgetJS } from './widget-generator';
 import { generateWidgetHTML } from './iframe-generator';
 import { LRUCache, memoryCache, getMemoryCacheStats } from './lru-handler';
+import { webSearch, shouldSearch, renderSearchContext } from './search';
 // @ts-ignore
 import systemInstruction from './systemInstruction.txt';
 // @ts-ignore
@@ -13,6 +14,7 @@ interface Env {
 	SYSTEM_PROMPT: KVNamespace;
 	RATE_LIMITER_KV: KVNamespace;
 	RESPONSE_CACHE_KV: KVNamespace;
+	EXA_API_KEY?: string;
 	DEBUG?: boolean;
 	API_KEY?: string;
 	CACHE_TTL?: string;
@@ -602,6 +604,16 @@ async function sendToAI(messages: any[], env: Env, country: string = 'US', visit
 						content: `Relevant information from Wikipedia about "${wikipediaInfo.title}":\n${wikipediaInfo.content}\nSource: ${wikipediaInfo.url}`,
 					});
 				}
+			}
+		}
+		// Live web search (Exa → DDG), 24h cached per query, injected as
+		// grounding facts so fresh/factual answers don't hallucinate.
+		if (lastUserMessage && shouldSearch(lastUserMessage.content)) {
+			const systemMessageIndex = messages.findIndex((m) => m.role === 'system');
+			if (systemMessageIndex !== -1) {
+				const webCache = { get: (k: string) => kvCache.get(k), set: (k: string, v: any, ttl?: number) => kvCache.set(k, v, ttl) };
+				const hits = await webSearch(lastUserMessage.content, env.EXA_API_KEY || '', webCache, 4).catch(() => []);
+				if (hits.length > 0) messages[systemMessageIndex].content += renderSearchContext(hits);
 			}
 		}
 
