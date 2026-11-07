@@ -64,6 +64,15 @@ async function getSystemPrompt(env: Env) {
 						lines.push(`- ${p.name} (${p.language}, ${p.stars}★) — ${p.description}`);
 					}
 				}
+				if (Array.isArray(gh.orgs)) {
+					for (const org of gh.orgs) {
+						if (!org || !Array.isArray(org.projects) || org.projects.length === 0) continue;
+						lines.push(`GitHub org ${org.login} (${org.totalRepos} repos):`);
+						for (const p of org.projects.slice(0, 15)) {
+							lines.push(`- ${p.name} (${p.language}, ${p.stars}★) — ${p.description}`);
+						}
+					}
+				}
 			}
 			if (lines.length > 0) {
 				promptContent +=
