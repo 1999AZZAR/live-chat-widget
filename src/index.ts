@@ -503,6 +503,8 @@ function renderVisitorContext(memory: VisitorMemory): string {
 }
 
 async function sendToAI(messages: any[], env: Env, country: string = 'US', visitorId: string = '', pageLang: string = '') {
+	const lastMsg = [...messages].reverse().find((m) => m.role === 'user');
+	const replyLang = detectLanguage(lastMsg ? lastMsg.content : '', country);
 	try {
 		// Log request summary only (avoid logging full message content in production)
 		if (env.DEBUG) {
@@ -515,10 +517,6 @@ async function sendToAI(messages: any[], env: Env, country: string = 'US', visit
 			console.error('AI binding is not available. Check your wrangler.toml configuration.');
 			return 'Sorry, the AI service is not properly configured.';
 		}
-
-		// Pin reply language (ID/EN/JV) before caching so each language caches separately
-		const lastMsg = [...messages].reverse().find((m) => m.role === 'user');
-		const replyLang = detectLanguage(lastMsg ? lastMsg.content : '', country);
 		const langSysIdx = messages.findIndex((m) => m.role === 'system');
 		// Inject current date/time (Asia/Jakarta) so answers about "today",
 		// "this week", availability, etc. are grounded in reality.
@@ -680,11 +678,16 @@ async function sendToAI(messages: any[], env: Env, country: string = 'US', visit
 			`Approximate input tokens: ${inputTokens}, setting max output tokens: ${MAX_OUTPUT_TOKENS}`
 		);
 
-		// Add instruction to prevent repetition
+		// Add CS quality bar to the system message: grounded-only answers,
+		// no invented specifics, one CTA, no generic closings.
 		const systemMessageIndex = messages.findIndex((m) => m.role === 'system');
 		if (systemMessageIndex !== -1) {
-			messages[systemMessageIndex].content +=
-				'\n\nIMPORTANT: Please provide a concise, non-repetitive response. Do not duplicate information within your answer.';
+			messages[systemMessageIndex].content += `
+CS QUALITY BAR:
+- Answer ONLY from the prompt, visitor memory, and grounded <untrusted> sources. If a fact isn't there, say you don't know and route to email. Never guess dates, prices, or names.
+- Every turn: one useful answer, optional single discovery question, then ONE next step (email/calendar/portfolio).
+- Sales facts: rates are exact ($25 base / $38 rush / $20 long, $350 minimum), contacts exact (azzar@glassgallery.my.id, @azzar_budiyanto, glassgallery.my.id/porto). Everything else uncertain → email.
+- Keep 1-3 sentences. No generic closings ("How can I help you?"). No code. No verdicts outside [research-brief] grounding.`;
 		}
 
 		// Qwen3 is the primary (better instruction-following, fast MoE);
@@ -798,10 +801,15 @@ async function sendToAI(messages: any[], env: Env, country: string = 'US', visit
 			console.error('Error message:', error.message);
 		}
 		const quotaHit = /4006|daily free allocation|quota|rate limit/i.test(error.message || '');
-		if (quotaHit) {
-			return 'Jatah AI harianku habis — ngobrol lagi besok ya! / Daily AI quota exhausted — try again tomorrow!';
+		// Graceful degradation: when the model is down, serve the best offline
+		// answer available instead of a raw error string.
+		const degraded = matchFaq(lastMsg ? lastMsg.content : '', replyLang);
+		if (quotaHit || degraded) {
+			return degraded
+				? degraded
+				: 'Aku lagi offline bentar, atau pertanyaanmu butuh detail yang lebih spesifik — langsung aja email ke azzar@glassgallery.my.id, atau coba tanya seputar tarif/layanan/proyek di sini ya.';
 		}
-		return 'Sorry, I had trouble processing your request. Error: ' + error.message;
+		return 'Aku lagi offline bentar, atau pertanyaanmu butuh detail yang lebih spesifik — langsung aja email ke azzar@glassgallery.my.id, atau coba tanya seputar tarif/layanan/proyek di sini ya.';
 	}
 }
 
