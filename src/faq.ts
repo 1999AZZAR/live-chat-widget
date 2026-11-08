@@ -212,9 +212,9 @@ const FAQ: FaqEntry[] = [
   {
     keys: ['github', 'repositori', 'repository', 'open source', 'repo'],
     a: {
-      id: 'GitHub-nya di github.com/1999AZZAR \u2014 127+ repo publik, dari firmware IoT sampai web app.',
-      en: 'GitHub: github.com/1999AZZAR \u2014 127+ public repos, from IoT firmware to web apps.',
-      jv: 'GitHub-e neng github.com/1999AZZAR \u2014 127+ repo publik.',
+      id: 'GitHub-nya di github.com/1999AZZAR — repo publik lengkap, dari firmware IoT sampai web app.',
+      en: 'GitHub: github.com/1999AZZAR — full public repos, from IoT firmware to web apps.',
+      jv: 'GitHub-e neng github.com/1999AZZAR — repo publik lengkap.',
     },
   },
   {
@@ -409,6 +409,96 @@ const FAQ: FaqEntry[] = [
       jv: 'Halo! Aku Mema, AI-ne Mas Azzar. Takon-takono soal gaweane, tarif, utawa kontak.',
     },
     greetingOnly: true,
+  },
+  // ---- Offline identity & general-conversation layer -----------------------
+  // These answer with zero tokens; the model only steps in for everything else.
+  {
+    keys: ['apa itu mema', 'apa yang dimaksud mema', 'mema itu apa', 'mema itu siapa', 'what is mema', 'who is mema', 'mema siapa', 'mema itu'],
+    a: {
+      id: 'MEMA singkatan dari Multi-Euristic Mind Automaton — AI pribadi AI-nya Mas Azzar. Aku (Mema) adalah wajahnya di chat ini: yang jawab pertanyaan soal kerjaan, tarif, dan proyek dia.',
+      en: 'MEMA stands for Multi-Euristic Mind Automaton — Mas Azzar\u2019s personal AI system. I\u2019m Mema, its face in this chat: answering about his work, rates, and projects.',
+      jv: 'MEMA kuwi Multi-Euristic Mind Automaton — sistem AI pribadi ne Mas Azzar. Aku Mema, wajahi neng chat iki.',
+    },
+  },
+  {
+    keys: ['beneran ai', 'beneran bot', 'kamu bot', 'kamu program', 'kamu beneran', 'are you real', 'are you a bot', 'are you ai', 'really ai', 'bukan manusia', 'not human', 'kamu manusia', 'kamu itu manusia'],
+    a: {
+      id: 'Seratus persen AI, bukan manusia. Aku Mema, AI pribadi Mas Azzar — dibangun supaya visitor bisa tanya-tanya soal kerjaan dia kapan aja.',
+      en: 'One hundred percent AI, not human. I\u2019m Mema, Mas Azzar\u2019s personal AI — built so visitors can ask about his work anytime.',
+      jv: 'Satatus persen AI, dudu menungso. Aku Mema, AI pribadi ne Mas Azzar.',
+    },
+  },
+  {
+    keys: ['kamu bisa apa', 'bisa apa aja', 'bisa ngapain', 'kemampuan', 'what can you do', 'can you do', 'kebolehan', 'fungsi', 'fitur', 'gunanya', 'kamu ngapain', 'kegunaannya', 'what do you do'],
+    a: {
+      id: 'Aku bisa bantu jawab soal kerjaan Mas Azzar: layanan, tarif, proses kerja, dan proyeknya — plus aku inget obrolan kita biar nyambung. Yang nggak bisa: nulis kode langsung, kirim email, atau telepon. Itu langsung ke Mas Azzar.',
+      en: 'I can answer about Mas Azzar\u2019s work: services, rates, process, and projects — plus I remember our conversation so chats stay coherent. What I can\u2019t do: write code, send emails, or make calls. Those go straight to Mas Azzar.',
+      jv: 'Aku iso bantu jawab soal gaweane Mas Azzar: layanan, tarif, proses, lan proyeke. Sing ora iso: nulis kode, kirim email, utawa nelpon — kuwi langsung neng Mas Azzar.',
+    },
+  },
+  {
+    keys: ['ada perasaan', 'punya perasaan', 'ada hati', 'marah', 'senang', 'bahagia', 'feeling', 'emotion', 'emosi', 'suka beneran', 'haha bisa ngerasa', 'kamu bisa ngerasa'],
+    a: {
+      id: 'Haha, aku "ngerasa" versi AI: seneng kalau obrolanmu nyambung dan pertanyaanmu jelas, sebal kalau ditanya hal yang sama berulang-ulang. Tapi nggak pake hati beneran — cuma pola respon yang kadang bawel.',
+      en: 'Ha — I "feel" the AI way: happy when the chat flows and your questions are clear, cranky when asked the same thing over and over. No real heart, just very opinionated patterns.',
+      jv: 'Aku "ngerasa" versi AI: seneng nek obrolane nyambung, sebal nek ditakoni sing padha bola-bali. Ora pake ati beneran.',
+    },
+  },
+  {
+    keys: ['tidur', 'ngantuk', 'capek', 'istirahat', 'sleep', 'tired', 'rest', 'do you sleep', 'kapan kamu tidur'],
+    a: {
+      id: 'Nggak pernah tidur — aku jalan 24 jam. Palingan lemot kalau kuota AI lagi habis, itu pun aku tetap bisa jawab dari arsip jawaban cepat.',
+      en: 'I never sleep — I run 24/7. Worst case is a slowdown when the AI quota is out, and even then I can answer from fast prebuilt replies.',
+      jv: 'Ora tau turu — aku mlaku 24 jam. Palingan lemot nek kuota AI entek, iku pun isih iso njawab soko arsip jawaban.',
+    },
+  },
+  {
+    keys: ['tinggal di mana', 'kamu di mana', 'where are you', 'lokasi kamu', 'di server mana', 'server di mana', 'running where'],
+    a: {
+      id: 'Aku jalan di Cloudflare (edge) — jadi bisa diakses dari mana aja tanpa nunggu Mas Azzar nyalain laptop.',
+      en: 'I run on Cloudflare\u2019s edge — reachable from anywhere without Mas Azzar turning on his laptop.',
+      jv: 'Aku mlaku neng Cloudflare — iso diakses soko endi wae tanpa Mas Azzar nyalain laptop.',
+    },
+  },
+  {
+    keys: ['kapan lahir', 'kapan dibuat', 'umur kamu', 'berapa umurmu', 'when were you made', 'when were you born', 'berapa lama kamu ada', 'kapan kamu dibuat'],
+    a: {
+      id: 'Aku "lahir" dan terus diperbarui bareng project Mas Azzar — jawaban cepat dan prompt-ku juga ikut di-update seiring dia ngembangin aku. Umurku = umur terakhir kali dia utak-atik aku.',
+      en: 'I was "born" and keep getting updated alongside Mas Azzar\u2019s projects — my prompts and fast answers evolve as he refines me. My age = whenever he last tinkered with me.',
+      jv: 'Aku "lair" lan terus di-update bareng projecte Mas Azzar — umurku = pungkasan dia utak-atik aku.',
+    },
+  },
+  {
+    keys: ['pacar', 'cewek', 'cowok', 'relationship', 'girlfriend', 'boyfriend', 'istri', 'suami', 'nikah'],
+    a: {
+      id: 'Urusan pribadi. Aku di sini fokus ngebantu tanya soal proyek dan layanan Mas Azzar aja.',
+      en: 'Private matter. I\u2019m here to help with questions about Mas Azzar\u2019s projects and services.',
+      jv: 'Urusan pribadi. Aku fokus mbantu takon soal proyek lan layanan Mas Azzar.',
+    },
+  },
+  {
+    keys: ['menu', 'navigasi situs', 'navigasi', 'cara pakai situs', 'navigating', 'situs ini', 'website ini', 'halaman apa saja', 'what pages'],
+    a: {
+      id: 'Situs ini ada: Home (pengenalan), About (biografi + stack), Services (semua layanan), Journal (blog Wong Edan\u2019s), Portfolio (/projects), dan Contact (kalkulator tarif + form). Yang paling sering ditanyakan ada di chat ini.',
+      en: 'This site has: Home (intro), About (bio + stack), Services (all offerings), Journal (Wong Edan\u2019s blog), Portfolio (/projects), and Contact (rate calculator + form). The most-asked stuff is right here in chat.',
+      jv: 'Situs iki ono: Home, About, Services, Journal, Portfolio, lan Contact. Sing paling asring ditakokake ono neng chat iki.',
+    },
+  },
+  {
+    keys: ['bantuan', 'tolong', 'help', 'bingung', 'help me', 'nggak ngerti', 'confused', 'gimana caranya', 'how does this work', 'cara pakai', 'how to use'],
+    a: {
+      id: 'Gampang: tanya aja apa yang perlu — tarif, layanan, proses kerja, atau proyek. Aku jawab cepat, dan kalau perlu detail, Mas Azzar yang lanjut via email azzar@glassgallery.my.id.',
+      en: 'Simple: just ask what you need — rates, services, process, or projects. I answer fast, and for details Mas Azzar takes over via azzar@glassgallery.my.id.',
+      jv: 'Gampang: takon wae apa sing dibutuhke — tarif, layanan, proses, utawa proyek. Aku njawab cepet.',
+    },
+  },
+  {
+    keys: ['kamu hafal', 'kamu inget obrolan', 'mengingat', 'memory', 'do you remember', 'kamu lupa', 'lupa obrolan'],
+    a: {
+      id: 'Iya, aku nyimpen riwayat obrolan kita selama sesi ini biar nyambung (dan aku bisa inget konteks pas kita bahas proyek atau tarif).',
+      en: 'Yes, I keep our conversation memory across this session so things stay coherent (and I\u2019ll carry context when we discuss projects or rates).',
+      jv: 'Iya, aku nyimpen riwayat obrolan kita sadhuwur sesi iki biar nyambung.',
+    },
   },
 ];
 
