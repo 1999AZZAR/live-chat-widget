@@ -49,11 +49,27 @@ const FAQ: FaqEntry[] = [
     },
   },
   {
-    keys: ['kenapa harus', 'why should', 'alasan hire', 'kelebihan', 'bedanya apa', 'kenapa pilih'],
+    keys: ['update berkala', 'progress update', 'dipantau', 'malah report', 'update pengerjaan', 'laporan progres'],
     a: {
-      id: 'Karena dia ngerjain end-to-end (firmware sampai dashboard), dokumentasi rapi, dan 13 situs produksi live sebagai bukti \u2014 bukan janji.',
-      en: 'Because he delivers end-to-end (firmware to dashboard), documents properly, and has 13 live production sites as proof \u2014 not promises.',
-      jv: 'Mergo dheweke nggarap end-to-end, dokumentasi rapi, lan 13 situs produksi live dadi bukti.',
+      id: 'Progresnya kelihatan sepanjang jalan — update berkala selama pengerjaan, bukan baru ketahuan di akhir. Estimasi waktu dihitung dari jam kerja dan scope, bukan asal gebrak.',
+      en: 'Progress stays visible throughout — with regular updates during the build, not a surprise at the end. Time estimates come from hours and scope, not a guess.',
+      jv: 'Progrese ketok sadhuwur dalan — update berkala, dudu dadakan. Estimasi wektu diitung soko jam kerja lan scope.',
+    },
+  },
+  {
+    keys: ['garansi', 'warranty', 'maintenance', 'after-sales', 'after sales', 'support sesudah selesai'],
+    a: {
+      id: 'Support lanjutan (maintenance, perubahan kecil) biasanya bisa dibicarakan — cara dan durasinya disepakati saat kickoff, tergantung scope proyeknya.',
+      en: 'Ongoing support (maintenance, small changes) is usually discussed at kickoff — terms and duration depend on the project scope.',
+      jv: 'Support lanjutan bisa dibicarakan — carane lan durasine disepakati neng kickoff, miturut scope proyeke.',
+    },
+  },
+  {
+    keys: ['kenapa harus', 'why should', 'alasan hire', 'kelebihan', 'bedanya apa', 'kenapa pilih', 'harus hire', 'harus dia', 'worth hiring', 'worth it'],
+    a: {
+      id: 'Karena dia ngerjain end-to-end (firmware sampai dashboard), dokumentasi rapi, dan 13 situs produksi live sebagai bukti — bukan janji. 7+ tahun freelance, jadi komunikasinya juga jelas dan terperinci.',
+      en: 'Because he delivers end-to-end (firmware to dashboard), documents properly, and has 13 live production sites as proof — not promises. 7+ years freelance, so communication is clear and detailed, too.',
+      jv: 'Mergo dheweke nggarap end-to-end, dokumentasi rapi, lan 13 situs produksi live dadi bukti — dudu janji. Pengalaman 7+ tahun.',
     },
   },
   {
@@ -67,9 +83,9 @@ const FAQ: FaqEntry[] = [
   {
     keys: ['tarif', 'harga', 'biaya', 'rate', 'price', 'pricing', 'budget', 'cost', 'how much', 'charge', 'fee'],
     a: {
-      id: 'Tarif dasar $25/jam. Proyek kilat (\u226424 jam) rush $38/jam, proyek panjang (>160 jam) turun ke $20/jam. Minimal proyek $350.',
-      en: 'Base $25/hr. Rush jobs (\u226424h) at $38/hr, long projects (>160h) drop to $20/hr. $350 minimum per project.',
-      jv: 'Dasar $25/jam. Proyek kilat (\u226424 jam) rush $38/jam, proyek dowo (>160 jam) mudun $20/jam. Minimal proyek $350.',
+      id: 'Tarif dasar $25/jam, rush $38/jam (≤24 jam), proyek panjang $20/jam (>160 jam), minimal proyek $350. Aturan gampang: transparan, tanpa biaya tersembunyi — dan kalkulator estimasinya ada di halaman Contact biar angkanya kelihatan langsung.',
+      en: 'Base $25/hr, rush $38/hr (≤24h), long-project $20/hr (>160h), $350 minimum per project. Simple rule: fully transparent, no hidden fees — and the public rate calculator on the Contact page does the math live.',
+      jv: 'Dasar $25/jam, rush kilat $38/jam, proyek dowo $20/jam, minimal $350. Transparan, tanpa biaya sing disembunyikake — kalkulator estimasine ono neng halaman Contact.',
     },
   },
   {
@@ -83,9 +99,9 @@ const FAQ: FaqEntry[] = [
   {
     keys: ['hire', 'sewa', 'rekrut', 'terima proyek', 'freelance', 'kerja sama', 'kolaborasi'],
     a: {
-      id: 'Bisa! Mas Azzar terima proyek remote. Ceritain kebutuhanmu lewat email azzar@glassgallery.my.id, nanti dibahas scope + estimasi.',
-      en: 'Yes! Mas Azzar takes remote projects. Describe your needs at azzar@glassgallery.my.id for scope + estimate.',
-      jv: 'Iso! Mas Azzar nompo proyek remote. Ceritakno kebutuhanmu lewat email azzar@glassgallery.my.id.',
+      id: 'Bisa! Mas Azzar terima proyek remote dari mana aja. Kirim brief ke azzar@glassgallery.my.id — tetap dibahas scope + estimasi transparan sebelum mulai, jadi kamu nggak kaget angka di tengah jalan.',
+      en: 'Yes! Mas Azzar takes remote projects from anywhere. Send a brief to azzar@glassgallery.my.id — scope and a transparent estimate are agreed before anything starts, so there are no mid-project surprises.',
+      jv: 'Iso! Mas Azzar nompo proyek remote seko endi wae. Kirim brief neng azzar@glassgallery.my.id — scope + estimasi transparan disepakati sadurunge mulai.',
     },
   },
   {
@@ -242,11 +258,11 @@ const FAQ: FaqEntry[] = [
     },
   },
   {
-    keys: ['pembayaran', 'payment', 'milestone', 'dp', 'cicil', 'installment', 'termin', 'uang muka', 'bayar'],
+    keys: ['bayar', 'pembayaran', 'payment', 'milestone', 'dp', 'cicil', 'installment', 'termin', 'uang muka'],
     a: {
-      id: 'Mulai dari USD 350. Milestone + termin pembayaran disepakati di awal, sebelum development mulai.',
-      en: 'Projects start at USD 350, with milestones and payment terms agreed before development begins.',
-      jv: 'Miwiti soko USD 350. Milestone + termin pembayaran disepakati neng awal.',
+      id: 'Mulai dari USD 350. Milestone + termin pembayaran disepakati di awal, sebelum development mulai. Jadi cashflow aman buat dua-duanya.',
+      en: 'Projects start at USD 350. Milestones and payment terms are agreed upfront, before development begins — so cashflow stays safe for both sides.',
+      jv: 'Miwiti soko USD 350. Milestone + termin disepakati neng awal, sadurunge development mulai.',
     },
   },
   {
@@ -400,16 +416,20 @@ export function matchFaq(text: string, lang: string): string | null {
   const lower = ` ${text.toLowerCase()} `;
   const hit = (k: string) => lower.includes(k);
   let greet: FaqEntry | null = null;
+  let best: { entry: FaqEntry; hits: number } | null = null;
   for (const entry of FAQ) {
     if (entry.greetingOnly) {
       if (!greet && entry.keys.some(hit)) greet = entry;
       continue;
     }
     const hits = entry.keys.filter(hit).length;
-    if (hits >= (entry.min ?? 1)) {
-      const v = lang.startsWith('Indonesian') ? entry.a.id : lang.startsWith('English') ? entry.a.en : entry.a.jv;
-      return v;
+    if (hits >= (entry.min ?? 1) && (!best || hits > best.hits)) {
+      best = { entry, hits };
     }
+  }
+  if (best) {
+    const v = lang.startsWith('Indonesian') ? best.entry.a.id : lang.startsWith('English') ? best.entry.a.en : best.entry.a.jv;
+    return v;
   }
   if (greet) {
     const v = lang.startsWith('Indonesian') ? greet.a.id : lang.startsWith('English') ? greet.a.en : greet.a.jv;
