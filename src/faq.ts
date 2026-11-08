@@ -145,6 +145,14 @@ const FAQ: FaqEntry[] = [
     },
   },
   {
+    keys: ['kamu hasil karya', 'kamu itu produk', 'kamu buktiin', 'contoh kerja ai', 'kamu itu ai nya dia', 'apakah kamu hasil buatan', 'kamu langsung ngewangin proyek mas azzar', 'buktinya kamu hasil karya'],
+    a: {
+      id: 'Iya, aku salah satu bukti karya AI-nya — live demo yang kamu lagi pakai sekarang. Mau bikin kayak aku? Email azzar@glassgallery.my.id ya.',
+      en: 'Yes — I\u2019m one of his AI works: a live demo you\u2019re chatting with right now. Want one like me? Email azzar@glassgallery.my.id.',
+      jv: 'Iya, aku salah siji bukti karya AI-ne — live demo sing lagi kokanggo saiki. Pengen sing koyo aku? Email azzar@glassgallery.my.id.',
+    },
+  },
+  {
     keys: ['estimasi', 'kalkulator', 'hitung', 'estimate', 'cost'],
     a: {
       id: 'Ada kalkulator estimasi di halaman Contact \u2014 isi jam + kompleksitas, langsung keluar angka. Patokan: dasar $25/jam, rush $38/jam, proyek panjang $20/jam, minimal $350.',

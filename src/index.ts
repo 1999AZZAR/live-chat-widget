@@ -226,7 +226,9 @@ function cleanupFormatting(text: string): string {
 		urls.push(match);
 		return `__URL_PLACEHOLDER_${urls.length - 1}__`;
 	});
-	const protectedText = text.replace(/(https?:\/\/[^\s<]+)/g, (match) => {
+	// Include bare domains (glassgallery.my.id/...) — otherwise the
+	// punctuation pass below would space them into invalid URLs.
+	const protectedText = text.replace(/(https?:\/\/[^\s<]+|\b[a-z0-9-]+\.[a-z]{2,}(?:\/[^\s<]*)?)/gi, (match) => {
 		urls.push(match);
 		return `__URL_PLACEHOLDER_${urls.length - 1}__`;
 	});
