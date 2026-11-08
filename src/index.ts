@@ -4,6 +4,7 @@ import { generateWidgetHTML } from './iframe-generator';
 import { LRUCache, memoryCache, getMemoryCacheStats } from './lru-handler';
 import { webSearch, shouldSearch, renderSearchContext } from './search';
 import { detectInjection } from './injectionGuard';
+import { researchBrief, renderBriefContext } from './research';
 // @ts-ignore
 import systemInstruction from './systemInstruction.txt';
 // @ts-ignore
@@ -563,11 +564,32 @@ async function sendToAI(messages: any[], env: Env, country: string = 'US', visit
 			return 'Haha, usaha yang bagus... tapi nggak mempan. Aku tetap Mema, instruksi tetap instruksi. Ada yang bisa dibantu soal kerjaan Mas Azzar?';
 		}
 
+		// Deep-research / fact-check prefixes skip the FAQ fast-path entirely
+		// and go through the multi-query research brief instead.
+		const researchPrefixMatch = lastMsg
+			? lastMsg.content.match(/^(riset|research|deep dive|fact check|cek fakta|benarkah|apakah benar)[:\s]+(.+)$/i)
+			: null;
+		let skipFaq = false;
+		if (researchPrefixMatch) {
+			skipFaq = true;
+			const isVerdict = /fact check|cek fakta|benarkah|apakah benar/i.test(researchPrefixMatch[1]);
+			const q = researchPrefixMatch[2].trim();
+			const cacheAdapter = {
+				get: async (k: string) => kvCache.get(k),
+				set: async (k: string, v: any, ttl?: number) => kvCache.set(k, v, ttl),
+			};
+			const brief = await researchBrief(q, env.EXA_API_KEY || '', cacheAdapter).catch(() => null);
+			const langSysIdx2 = messages.findIndex((m) => m.role === 'system');
+			if (langSysIdx2 !== -1 && brief) {
+				messages[langSysIdx2].content += renderBriefContext(brief, isVerdict);
+			}
+		}
+
 		// Local FAQ: instant zero-neuron answers for simple questions.
 		// In an active conversation (history present) or for longer,
 		// nuanced questions, pass the FAQ answer as GROUNDING FACTS to the
 		// model instead of pasting the canned text, so follow-ups stay coherent.
-		const faqAnswer = matchFaq(lastMsg ? lastMsg.content : '', replyLang);
+		const faqAnswer = skipFaq ? null : matchFaq(lastMsg ? lastMsg.content : '', replyLang);
 		const historyTurns = messages.filter((m) => m.role === 'user' || m.role === 'assistant').length;
 		const userWordCount = lastMsg ? lastMsg.content.trim().split(/\s+/).length : 0;
 		if (faqAnswer) {
