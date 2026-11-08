@@ -17,6 +17,38 @@ const FAQ: FaqEntry[] = [
     },
   },
   {
+    keys: ['nego', 'bisa nego', 'kurang', 'diskon', 'discount', 'mahal', 'expensive', 'terlalu mahal', 'turun harga', 'potong'],
+    a: {
+      id: 'Tarifnya sejak awal transparan, tanpa biaya tersembunyi. Scope kecil dibantu dipangkas biar muat budget — kalau ada yang kepotong, kami potong bareng-bareng, bukan diumpetin.',
+      en: 'Rates are transparent from the start, no hidden fees. If budget is tight, we trim scope together — nothing gets hidden in fine print.',
+      jv: 'Tarife transparan, ora ono biaya sing disembunyikake. Nek budget kurang, scope-ne dipangkas bareng.',
+    },
+  },
+  {
+    keys: ['layanan apa saja', 'list layanan', 'katalog jasa', 'jasa apa', 'services list', 'yang bisa dikerjakan', 'bisa bikin', 'bikin apa'],
+    a: {
+      id: 'Macamnya luas: IoT & embedded (ESP32, Arduino, STM32), web full-stack (React, Next.js, Python), API, otomasi, DevOps & cloud, generative AI & ML, SEO, konsultasi, training/workshop, UI/UX, dan technical writing.',
+      en: 'The range: IoT & embedded (ESP32, Arduino, STM32), full-stack web (React, Next.js, Python), APIs, automation, DevOps & cloud, generative AI & ML, SEO, consulting, training/workshops, UI/UX, and technical writing.',
+      jv: 'Maceme akeh: IoT & embedded, web full-stack, API, otomasi, DevOps & cloud, AI/ML, SEO, konsultasi, training, UI/UX, lan technical writing.',
+    },
+  },
+  {
+    keys: ['metode pembayaran', 'cara bayar', 'payment method', 'dp', 'uang muka', 'termin pembayaran', 'payment plan'],
+    a: {
+      id: 'Fleksibel: milestone + termin pembayaran disepakati di awal sebelum development mulai, dan ada multi-currency di rate calculator.',
+      en: 'Flexible: milestones and payment terms are agreed up front before development starts, with multi-currency options in the rate calculator.',
+      jv: 'Fleksibel: milestone lan termin disepakati neng awal, ono multi-currency neng rate calculator.',
+    },
+  },
+  {
+    keys: ['proses pengerjaan', 'cara kerja', 'alur proyek', 'timeline pengerjaan', 'kerangka kerja'],
+    a: {
+      id: 'Alurnya: kirim brief → estimasi scope + timeline transparan → deal → garap dengan update berkala. Kamu pantau progresnya sepanjang jalan, bukan terima jadi.',
+      en: 'Flow: send a brief → transparent scope + timeline estimate → deal → build with regular updates. You track progress along the way, not a surprise at the end.',
+      jv: 'Alure: kirim brief → estimasi scope + timeline → deal → garap karo update berkala. Progres ketauan, ora dadakan.',
+    },
+  },
+  {
     keys: ['kenapa harus', 'why should', 'alasan hire', 'kelebihan', 'bedanya apa', 'kenapa pilih'],
     a: {
       id: 'Karena dia ngerjain end-to-end (firmware sampai dashboard), dokumentasi rapi, dan 13 situs produksi live sebagai bukti \u2014 bukan janji.',
