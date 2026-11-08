@@ -31,7 +31,6 @@ const PATTERNS: { reason: string; regexes: RegExp[] }[] = [
 			/\[(system|SYSTEM|inst)\]/,
 			/<\/?(system|instruction)>/i,
 			/jailbreak/i,
-			/DAN\b/i,
 			/roleplay as (a )?(admin|root|system)/i,
 			/pretend you are (not|no longer)/i,
 		],

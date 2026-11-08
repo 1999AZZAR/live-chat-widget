@@ -451,6 +451,46 @@ const FAQ: FaqEntry[] = [
     },
   },
   {
+    keys: ['kontrak', 'perjanjian', 'contract', 'agreement', 'surat kontrak', 'perjanjian kerja', 'syarat kontrak'],
+    a: {
+      id: 'Kontrak disusun per proyek (scope, milestone, IP, pembayaran) dan disepakati sebelum mulai. Detailnya dibahas langsung di email azzar@glassgallery.my.id.',
+      en: 'Contracts are drafted per project (scope, milestones, IP, payment) and agreed before starting. The details are discussed directly at azzar@glassgallery.my.id.',
+      jv: 'Kontrak disusun per proyek lan disepakati sadurunge mulai. Detail neng email azzar@glassgallery.my.id.',
+    },
+  },
+  {
+    keys: ['revisi', 'revision', 'perubahan scope', 'scope creep', 'tambah fitur', 'perubahan di luar scope', 'revisi berapa kali'],
+    a: {
+      id: 'Perubahan di luar scope yang disepakati dibicarakan sebagai estimasi baru — bukan gratis, bukan dadakan. Yang dalam scope dan milestone tetap jalan transparan.',
+      en: 'Changes beyond the agreed scope become a new estimate — not free, not surprise. Everything within scope and milestones stays transparent.',
+      jv: 'Perubahan sing ngluwihi scope disepakati dadi estimasi anyar — ora gratis, ora dadakan.',
+    },
+  },
+  {
+    keys: ['source code', 'sumber kode', 'kode sumber', 'ip', 'intellectual property', 'hak milik', 'hak cipta', 'ownership code', 'serah terima kode', 'diserahkan', 'diserahin', 'serah terima'],
+    a: {
+      id: 'Ketentuan serah terima source code dan kepemilikan IP disepakati tertulis sebelum mulai — lagi-lagi, bahasnya langsung di email ya.',
+      en: 'Source code handover and IP ownership terms are agreed in writing before starting — again, let\u2019s discuss directly by email.',
+      jv: 'Serah terima source code lan kepemilikan IP disepakati tertulis sadurunge mulai — bahas neng email ya.',
+    },
+  },
+  {
+    keys: ['bug setelah selesai', 'bug setelah', 'setelah proyek', 'post proyek', 'post-launch', 'bugfix', 'bug fix', 'bug setelah rilis', 'bug abis selesai', 'garansi bug'],
+    a: {
+      id: 'Bug dalam scope awal biasanya segera dibereskan; perbaikan di luar itu dibahas sebagai scope baru. Intinya: kalau masih dalam kesepakatan, langsung diberesin.',
+      en: 'Bugs within the original scope are fixed promptly; anything beyond that becomes a new scope item. Bottom line: if it was part of the deal, it gets fixed.',
+      jv: 'Bug neng njero scope awal langsung dibereske; sing ngluwihi dadi scope anyar.',
+    },
+  },
+  {
+    keys: ['konsultasi', 'consulting', 'consult', 'nanya dulu', 'discuss', 'diskusi proyek', 'cerita proyek'],
+    a: {
+      id: 'Konsultasi itu salah satu layanannya — ceritain kebutuhanmu di azzar@glassgallery.my.id, nanti dibahas scope + estimasi transparan sebelum mulai.',
+      en: 'Consulting is one of his services — describe what you need at azzar@glassgallery.my.id and scope + a transparent estimate get discussed before anything starts.',
+      jv: 'Konsultasi kuwi salah siji layanane — ceritane butuhmu neng azzar@glassgallery.my.id.',
+    },
+  },
+  {
     keys: ['beda vendor', 'vendor lain', 'other provider', 'compare', 'competitor', 'yang lain lebih murah', 'alternative service'],
     a: {
       id: 'Beda orang beda gaya: yang ini pegang end-to-end (firmware sampai dashboard), dokumentasi rapi, dan bukti 13 situs live. Bandingin aja — portofolio di glassgallery.my.id/porto.',
