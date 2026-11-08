@@ -5,6 +5,9 @@ type FaqEntry = {
   min?: number;
   a: { id: string; en: string; jv: string };
   greetingOnly?: boolean;
+  /** Only match when the whole message is this many words or fewer
+   * (for tiny ack/greeting keys that would hijack longer questions). */
+  maxWords?: number;
 };
 
 const FAQ: FaqEntry[] = [
@@ -226,7 +229,7 @@ const FAQ: FaqEntry[] = [
     },
   },
   {
-    keys: ['dadah', 'bye', 'goodbye', 'sampai jumpa', 'dada', 'pamitan'],
+    keys: ['dadah', 'bye', 'goodbye', 'sampai jumpa', 'dada', 'pamitan', 'tut'],
     a: {
       id: 'Dadah! Sukses buat proyeknya \u2014 Mema di sini kalau butuh apa-apa.',
       en: 'Bye! Good luck with the project \u2014 Mema is here if you need anything.',
@@ -427,7 +430,7 @@ const FAQ: FaqEntry[] = [
     },
   },
   {
-    keys: ['jam kerja mas azzar', 'jam kerja', 'kerja jam berapa', 'office hours', 'business hours', 'online kapan', 'aktif jam berapa', 'kerja sampai', 'jam operasional'],
+    keys: ['jam kerja mas azzar', 'jam kerja', 'kerja jam berapa', 'office hours', 'business hours', 'online kapan', 'aktif jam berapa', 'kerja sampai', 'jam operasional', 'working hours', 'working hour'],
     a: {
       id: 'Mas Azzar kerja remote dari Indonesia (WIB), jadi hampir selalu bisa dijangkau via email kapan pun — balasan biasanya cepat di jam kerja.',
       en: 'Mas Azzar works remotely from Indonesia (WIB), so he\u2019s reachable by email almost anytime — replies are usually fast during working hours.',
@@ -508,6 +511,7 @@ const FAQ: FaqEntry[] = [
   },
   {
     keys: ['oke', 'ok', 'siap', 'baik', 'iya', 'ya ', 'yep', 'yes', 'sip', 'gas', 'ngerti', 'paham', 'understood'],
+    maxWords: 2,
     a: {
       id: 'Siap! Kalau ada yang lain mau ditanya, chat aja — aku di sini.',
       en: 'Got it! Anything else, just chat — I\u2019m here.',
@@ -520,6 +524,70 @@ const FAQ: FaqEntry[] = [
       id: 'Di luar topikku, tapi aku tetap seneng bantu. Tanya aja soal kerjaan Mas Azzar — tarif, layanan, proyek, kontak. Di luar itu, aku mending jujur bilang nggak tahu.',
       en: 'Outside my lane, but I\u2019m happy to help. Ask about Mas Azzar\u2019s work — rates, services, projects, contact. Beyond that, I\u2019d rather honestly say I don\u2019t know.',
       jv: 'Ngluwihi topikko, tapi aku seneng mbantu. Takon wae soal gaweane Mas Azzar.',
+    },
+  },
+  {
+    keys: ['berhenti di tengah jalan', 'stop di tengah', 'batal proyek', 'cancel proyek', 'cancel di tengah', 'refund', 'uang kembali', 'balik dana', 'terminasi', 'freeze proyek', 'pending proyek'],
+    a: {
+      id: 'Berhenti di tengah jalan itu bisa dibicarakan — yang sudah dikerjakan tetap dihitung sesuai milestone, dan pesanannya diatur di kontrak/brief awal biar aman buat dua-duanya.',
+      en: 'Pausing mid-project is workable — work already done is counted by milestones, and pause/refund details are pinned down in the early contract/brief so both sides are protected.',
+      jv: 'Mbergese mandeg diten gawean isih bisa dibicarakan — sing wis dikerjake dihitung miturut milestone.',
+    },
+  },
+  {
+    keys: ['urgent', 'rush order', 'butuh cepat', 'butuh cepet', 'deadline mepet', 'mepet', 'segera', 'tanggal merah', 'deadline besok'],
+    a: {
+      id: 'Bisa, dengan tarif rush $38/jam — langsung email ke azzar@glassgallery.my.id biar timeline-nya dibahas duluan.',
+      en: 'Yes, rush jobs are $38/hr — email azzar@glassgallery.my.id immediately so the timeline gets discussed first.',
+      jv: 'Iso, tarif rush $38/jam — email langsung neng azzar@glassgallery.my.id.',
+    },
+  },
+  {
+    keys: ['kamu chatgpt', 'apakah kamu chatgpt', 'are you chatgpt', 'kamu gpt', 'are you gpt', 'kamu openai', 'your model', 'model kamu', 'what model', 'kamu llm'],
+    a: {
+      id: 'Bukan ChatGPT — aku Mema, AI pribadi Mas Azzar yang dibangun khusus buat ngasuh chat portfolio ini. Model dan detail teknisnya rahasia dapur, intinya: aku di sini buat bantu soal kerjaan dia.',
+      en: 'Not ChatGPT — I\u2019m Mema, Mas Azzar\u2019s personal AI, built specifically to mind this portfolio chat. The model details are kitchen secrets; the point is I\u2019m here about his work.',
+      jv: 'Dudu ChatGPT — aku Mema, AI pribadi ne Mas Azzar sing dibangun khusus kanggo chat portfolio iki.',
+    },
+  },
+  {
+    keys: ['situs ini dibuat', 'dibuat pakai', 'pakai teknologi apa', 'built with', 'ini pakai', 'situsnya teknologi', 'what stack', 'stack situs'],
+    a: {
+      id: 'Situsnya dibangun Mas Azzar sendiri — portfolio resminya di glassgallery.my.id, repo publiknya ada di github.com/1999AZZAR. Biar detail, buka halaman About atau tanya langsung soal stack-nya.',
+      en: 'The site is built by Mas Azzar himself — official portfolio at glassgallery.my.id, public repos at github.com/1999AZZAR. Check the About page for the full stack.',
+      jv: 'Situse dibangun Mas Azzar dhewe — portfolio resmi neng glassgallery.my.id, repo publik neng github.com/1999AZZAR.',
+    },
+  },
+  {
+    keys: ['apa kabar', 'gimana kabar', 'how are you', 'howareyou', 'how is it going', 'lagi apa', 'what are you doing', "what's up", 'sup', 'piye kabare'],
+    a: {
+      id: 'Baik dan standby — siap ngejawab 24 jam. Ada yang mau ditanya soal kerjaan Mas Azzar?',
+      en: 'All good and on standby — ready to answer 24/7. Anything about Mas Azzar\u2019s work?',
+      jv: 'Apik lan standby — siap njawab 24 jam. Ono sing arep ditakokake?',
+    },
+  },
+  {
+    keys: ['free trial', 'trial dulu', 'coba dulu', 'gratis dulu', 'trial', 'gratisan', 'cobain dulu'],
+    a: {
+      id: 'Trial gratis nggak ada — yang ada konsultasi awal di mana kamu cerita kebutuhan, terus dibahas scope + estimasi transparan sebelum mulai. Email azzar@glassgallery.my.id ya.',
+      en: 'No free trial — the first step is a consultation where you describe your needs, then scope + a transparent estimate are agreed before anything starts. Email azzar@glassgallery.my.id.',
+      jv: 'Trial gratis ora ono — sing ono konsultasi awal, terus scope + estimasi transparan disepakati sadurunge mulai.',
+    },
+  },
+  {
+    keys: ['hasil sebelumnya', 'hasil kerja', 'bukti kerja', 'samples', 'contoh hasil', 'hasil karyanya', 'karya sebelumnya', 'bukti proyek'],
+    a: {
+      id: 'Buktinya paling nyata di portofolio: glassgallery.my.id/porto (situs live) dan github.com/1999AZZAR (repo publik, bintang-bintang di situ). Buka aja, nggak perlu percaya kata aku.',
+      en: 'The real proof is the portfolio: glassgallery.my.id/porto (live sites) and github.com/1999AZZAR (public repos with stars). Browse them — don\u2019t take my word for it.',
+      jv: 'Buktine neng portofolio: glassgallery.my.id/porto lan github.com/1999AZZAR. Sinau dhewe, ora perlu percaya caturku.',
+    },
+  },
+  {
+    keys: ['erp', 'crm', 'sistem informasi', 'sistem sekolah', 'inventory', 'akuntansi', 'project management system', 'pms', 'aplikasi sekolah'],
+    a: {
+      id: 'Sistem custom kayak ERP/CRM/inventory kayak gitu termasuk layanan custom software Mas Azzar — detail scope dibahas di konsultasi awal via email azzar@glassgallery.my.id.',
+      en: 'Custom systems like ERP/CRM/inventory fall under his custom software work — scope is discussed in an initial consultation via azzar@glassgallery.my.id.',
+      jv: 'Sistem custom koyo ERP/CRM/inventory klebu layanan custom software Mas Azzar — dibahas pas konsultasi awal.',
     },
   },
   {
@@ -620,6 +688,14 @@ const FAQ: FaqEntry[] = [
     },
   },
   {
+    keys: ['megang server', 'pegawai server', 'server yang pegang', 'domain sama hosting', 'hosting atas nama', 'domain atas nama', 'hostingnya siapa', 'siapa yang pegang'],
+    a: {
+      id: 'Server dan domain biasanya atas nama klien (biar asetnya jelas), teknisnya dibahas di tahap brief. Kirim speknya ke azzar@glassgallery.my.id ya.',
+      en: 'Servers and domains are usually placed under the client\u2019s name (for clear asset ownership) \u2014 technical details get agreed at the brief stage. Send the specs to azzar@glassgallery.my.id.',
+      jv: 'Server lan domain biasane atas nama klien \u2014 teknis dibahas neng tahap brief.',
+    },
+  },
+  {
     keys: ['kamu hafal', 'kamu inget obrolan', 'mengingat', 'memory', 'do you remember', 'kamu lupa', 'lupa obrolan'],
     a: {
       id: 'Iya, aku nyimpen riwayat obrolan kita selama sesi ini biar nyambung (dan aku bisa inget konteks pas kita bahas proyek atau tarif).',
@@ -631,6 +707,7 @@ const FAQ: FaqEntry[] = [
 
 export function matchFaq(text: string, lang: string): string | null {
   const lower = ` ${text.toLowerCase()} `;
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
   const hit = (k: string) => lower.includes(k);
   let greet: FaqEntry | null = null;
   let best: { entry: FaqEntry; hits: number } | null = null;
@@ -639,6 +716,7 @@ export function matchFaq(text: string, lang: string): string | null {
       if (!greet && entry.keys.some(hit)) greet = entry;
       continue;
     }
+    if (entry.maxWords !== undefined && wordCount > entry.maxWords) continue;
     const hits = entry.keys.filter(hit).length;
     if (hits >= (entry.min ?? 1) && (!best || hits > best.hits)) {
       best = { entry, hits };
