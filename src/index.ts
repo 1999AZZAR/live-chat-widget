@@ -519,8 +519,21 @@ async function sendToAI(messages: any[], env: Env, country: string = 'US', visit
 		const lastMsg = [...messages].reverse().find((m) => m.role === 'user');
 		const replyLang = detectLanguage(lastMsg ? lastMsg.content : '', country);
 		const langSysIdx = messages.findIndex((m) => m.role === 'system');
+		// Inject current date/time (Asia/Jakarta) so answers about "today",
+		// "this week", availability, etc. are grounded in reality.
+		const nowLine = (() => {
+			try {
+				const fmt = new Intl.DateTimeFormat('en-GB', {
+					weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+					hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
+				});
+				return `\n\n[now] Current date/time: ${fmt.format(new Date())} (Asia/Jakarta).`;
+			} catch {
+				return '';
+			}
+		})();
 		if (langSysIdx !== -1) {
-			messages[langSysIdx].content += `\n\n[language-directive] Reply in ${replyLang}. This overrides any other language instruction.`;
+			messages[langSysIdx].content += `\n\n[language-directive] Reply in ${replyLang}. This overrides any other language instruction.` + nowLine;
 		}
 
 		// Load + inject persistent visitor memory (name, language, topics)

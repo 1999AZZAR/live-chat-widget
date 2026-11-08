@@ -410,7 +410,94 @@ const FAQ: FaqEntry[] = [
     },
     greetingOnly: true,
   },
-  // ---- Offline identity & general-conversation layer -----------------------
+  {
+    keys: ['komplain', 'kecewa', 'nggak puas', 'tidak puas', 'complain', 'disappointed', 'kecewa berat', 'janji', 'telat', 'late', 'kacau', 'berantakan'],
+    a: {
+      id: 'Dengerin, aku catat ya. Supaya cepet selesai, kirim detail keluhannya ke azzar@glassgallery.my.id — Mas Azzar paling cepet ngebenerin kalau ada yang jelas, bukan cuma keluhan doang.',
+      en: 'Noted, I hear you. To get it fixed fast, send the specifics to azzar@glassgallery.my.id — Mas Azzar fixes fastest when the issue is concrete, not just the complaint.',
+      jv: 'Tak catat ya. Ben cepet rampung, kirim detail keluhane neng azzar@glassgallery.my.id.',
+    },
+  },
+  {
+    keys: ['bodoh', 'tolol', 'goblok', 'anjing', 'babi', 'sial', 'fuck', 'idiot', 'dumb', 'stupid', 'stfu', 'asu', 'bangsat', 'tolol kau'],
+    a: {
+      id: 'Haha, emosi boleh — tapi makian nggak akan bikin sistem berubah. Tanya aja yang penting, tak bantu jawab sampai tuntas.',
+      en: 'Ha — venting is fine, but insults don\u2019t change systems. Ask the real question and I\u2019ll answer it fully.',
+      jv: 'Haha, emosi oleh — makian ora bakal nguwahi sistem. Takon wae sing penting, tak jawab tuntas.',
+    },
+  },
+  {
+    keys: ['jam kerja mas azzar', 'jam kerja', 'kerja jam berapa', 'office hours', 'business hours', 'online kapan', 'aktif jam berapa', 'kerja sampai', 'jam operasional'],
+    a: {
+      id: 'Mas Azzar kerja remote dari Indonesia (WIB), jadi hampir selalu bisa dijangkau via email kapan pun — balasan biasanya cepat di jam kerja.',
+      en: 'Mas Azzar works remotely from Indonesia (WIB), so he\u2019s reachable by email almost anytime — replies are usually fast during working hours.',
+      jv: 'Mas Azzar kerja remote soko Indonesia (WIB) — email kapan wae bisa, balasan cepet neng jam kerja.',
+    },
+  },
+  {
+    keys: ['pesanan saya', 'order status', 'status pesanan', 'sudah selesai', 'kapan selesai', 'tracking', 'pengiriman', 'delivery'],
+    a: {
+      id: 'Untuk status proyek yang sedang berjalan, langsung tanya ke Mas Azzar via azzar@glassgallery.my.id — itu paling baru dan akurat.',
+      en: 'For the status of an ongoing project, ask Mas Azzar directly at azzar@glassgallery.my.id — that\u2019s the freshest, most accurate source.',
+      jv: 'Nek status proyek sing mlaku, takon langsung neng Mas Azzar via azzar@glassgallery.my.id.',
+    },
+  },
+  {
+    keys: ['kwitansi', 'invoice', 'struk', 'receipt', 'factuur', 'bukti bayar'],
+    a: {
+      id: 'Invoice/bukti pembayaran bisa diminta — sebutin aja di email saat pembayaran disepakati, nanti diterbitkan.',
+      en: 'Invoices/receipts can be issued on request — just mention it in your email when the payment terms are agreed.',
+      jv: 'Invoice / bukti bayar bisa diminta — sebut wae neng email.',
+    },
+  },
+  {
+    keys: ['beda vendor', 'vendor lain', 'other provider', 'compare', 'competitor', 'yang lain lebih murah', 'alternative service'],
+    a: {
+      id: 'Beda orang beda gaya: yang ini pegang end-to-end (firmware sampai dashboard), dokumentasi rapi, dan bukti 13 situs live. Bandingin aja — portofolio di glassgallery.my.id/porto.',
+      en: 'Everyone works differently: this one is end-to-end (firmware to dashboard), documents properly, and backs it with 13 live production sites. Compare away — portfolio at glassgallery.my.id/porto.',
+      jv: 'Beda wong beda gaya: iki end-to-end, dokumentasi rapi, lan bukti 13 situs live.',
+    },
+  },
+  {
+    keys: ['nda', 'confidential', 'rahasia', 'keamanan data', 'data aman', 'agreement kerahasiaan'],
+    a: {
+      id: 'Soal NDA/kerahasiaan bisa dibicarakan langsung di tahap brief — sebutkan aja ke Mas Azzar via email biar sesuaikan kebutuhan proyekmu.',
+      en: 'NDA/confidentiality can be arranged during the brief stage — just flag it to Mas Azzar by email so it matches your project.',
+      jv: 'Soal NDA bisa dibicarakan neng tahap brief — sebut wae neng email.',
+    },
+  },
+  {
+    keys: ['oke', 'ok', 'siap', 'baik', 'iya', 'ya ', 'yep', 'yes', 'sip', 'gas', 'ngerti', 'paham', 'understood'],
+    a: {
+      id: 'Siap! Kalau ada yang lain mau ditanya, chat aja — aku di sini.',
+      en: 'Got it! Anything else, just chat — I\u2019m here.',
+      jv: 'Siap! Nek ono liyane, chat wae — aku neng kene.',
+    },
+  },
+  {
+    keys: ['di luar topik', 'di luar topikku', 'di luar keahlian', 'off topic', 'not your field', 'bukan bidangmu', 'di luar bidang'],
+    a: {
+      id: 'Di luar topikku, tapi aku tetap seneng bantu. Tanya aja soal kerjaan Mas Azzar — tarif, layanan, proyek, kontak. Di luar itu, aku mending jujur bilang nggak tahu.',
+      en: 'Outside my lane, but I\u2019m happy to help. Ask about Mas Azzar\u2019s work — rates, services, projects, contact. Beyond that, I\u2019d rather honestly say I don\u2019t know.',
+      jv: 'Ngluwihi topikko, tapi aku seneng mbantu. Takon wae soal gaweane Mas Azzar.',
+    },
+  },
+  {
+    keys: ['anda', 'kamu itu', 'anda itu', 'kamu adalah'],
+    a: {
+      id: 'Aku Mema, AI pribadi Mas Azzar — yang jaga chat ini. Tanya aja soal kerjaan dia.',
+      en: 'I\u2019m Mema, Mas Azzar\u2019s personal AI — minding this chat. Ask away about his work.',
+      jv: 'Aku Mema, AI pribadi ne Mas Azzar.',
+    },
+  },
+  {
+    keys: ['help', 'bantuan', 'tolong', 'butuh bantuan', 'need help', 'help me', 'bingung', 'confused', 'panduan'],
+    a: {
+      id: 'Siap bantu! Ceritain aja kebutuhannya — tarif, layanan, proses kerja, atau proyek. Kalau butuh detail, email ke azzar@glassgallery.my.id ya.',
+      en: 'Happy to help! Just describe what you need — rates, services, process, or projects. For details, email azzar@glassgallery.my.id.',
+      jv: 'Siap mbantu! Ceritane wae butuhe apa — tarif, layanan, proses, utawa proyek.',
+    },
+  },
   // These answer with zero tokens; the model only steps in for everything else.
   {
     keys: ['apa itu mema', 'apa yang dimaksud mema', 'mema itu apa', 'mema itu siapa', 'what is mema', 'who is mema', 'mema siapa', 'mema itu'],
